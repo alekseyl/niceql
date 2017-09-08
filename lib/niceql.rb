@@ -25,7 +25,7 @@ module Niceql
       end
     end
 
-    def to_nicesql
+    def to_niceql
       Prettifier.prettify_sql(to_sql, false)
     end
 
