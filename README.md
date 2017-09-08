@@ -1,8 +1,18 @@
 # Niceql
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/niceql`. To experiment with that code, run `bin/console` for an interactive prompt.
+This is small, nice, simple and dependentless solution for SQL prettifiyng. 
+It can be used in irb console without any dependencies.
 
-TODO: Delete this and the text above, and describe your gem
+## Before/After 
+###SQL prettifier: 
+![alt text](https://github.com/alekseyl/niceql/to_niceql.png "To_niceql")
+
+###PG errors prettifier 
+before: 
+![alt text](https://github.com/alekseyl/niceql/err_was.png "To_niceql")
+
+after:
+![alt text](https://github.com/alekseyl/niceql/err_now.png "To_niceql")
 
 ## Installation
 
