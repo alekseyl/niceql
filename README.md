@@ -86,16 +86,9 @@ Right now it detect only uppercase verbs with simple indentation and parsing opt
 Also if your console support more colors or different schemes, or you prefer different colorization you can override ColorizeString 
 methods. Current color are selected with dark and white console themes in mind, so it works good for dark, and good enough for white.
 
-
-## Development
-
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
-
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
-
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/niceql.
+Bug reports and pull requests are welcome on GitHub at https://github.com/alekseyl/niceql.
 
 ## License
 
