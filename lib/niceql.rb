@@ -19,7 +19,7 @@ module Niceql
   module ArExtentions
     def explain_err
       begin
-        connection.execute( "EXPLAIN #{to_nicesql}" )
+        connection.execute( "EXPLAIN #{to_niceql}" )
       rescue StandardError => e
         puts Prettifier.prettify_err(e )
       end
