@@ -39,7 +39,10 @@ Or install it yourself as:
 ### With ActiveRecord
 
 ```ruby
-  # prettify to_sql 
+  # puts prettified to_sql ( you need to call puts otherwise to_niceql looks ugly  )
+  Model.scope.puts_niceql
+  
+  # only formatting without colorization can run as SQL query in connection.execute  
   Model.scope.to_niceql
   
   # prettify PG errors 

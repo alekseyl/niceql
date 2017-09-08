@@ -19,13 +19,17 @@ module Niceql
   module ArExtentions
     def explain_err
       begin
-        connection.execute( "EXPLAIN #{Prettifier.prettify_sql(to_sql, false)}" )
+        connection.execute( "EXPLAIN #{to_nicesql}" )
       rescue StandardError => e
         puts Prettifier.prettify_err(e )
       end
     end
 
-    def to_niceql( colorize = true )
+    def to_nicesql
+      Prettifier.prettify_sql(to_sql, false)
+    end
+
+    def puts_niceql( colorize = true )
       puts Prettifier.prettify_sql( to_sql, colorize )
     end
   end
@@ -66,13 +70,15 @@ module Niceql
       parentness = []
 
       sql = sql.gsub(STRINGS){ |str| StringColorize.colorize_str(str) } if colorize
+      first_verb  = true
 
       sql.gsub( /(#{VERBS}|#{BRACKETS})/) do |verb|
         add_new_line = false
         if 'SELECT' == verb
           indent += 1
           parentness.last[:nested] = true if parentness.last
-          add_new_line = true
+          add_new_line = !first_verb
+          first_verb = false
         elsif verb == '('
           parentness << { nested: false }
           indent += 1
@@ -90,7 +96,6 @@ module Niceql
           add_new_line = verb[/(#{INLINE_VERBS})/].nil?
         end
         verb = StringColorize.colorize_verb(verb) if !['(', ')'].include?(verb) && colorize
-
         add_new_line ? "\n#{' ' * indent}" + verb : verb
       end
     end
