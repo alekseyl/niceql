@@ -82,9 +82,10 @@ ERR
 ```
 ## Limitations
 
-Right now it detect only uppercase verbs with simple indentation and parsing options. 
-Also if your console support more colors or different schemes, or you prefer different colorization you can override ColorizeString 
-methods. Current color are selected with dark and white console themes in mind, so it works good for dark, and good enough for white.
+Right now gem detects only uppercased form of verbs with very simple indentation and parsing options. 
+
+## Customizing colors
+If your console support more colors or different schemes, or you prefer different colorization, then you can override ColorizeString methods. Current color are selected with dark and white console themes in mind, so niceql colorization works good for dark, and good enough for white.
 
 ## Contributing
 
