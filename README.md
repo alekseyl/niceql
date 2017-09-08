@@ -5,14 +5,14 @@ It can be used in irb console without any dependencies.
 
 ## Before/After 
 ###SQL prettifier: 
-![alt text](https://github.com/alekseyl/niceql/to_niceql.png "To_niceql")
+![alt text](https://github.com/alekseyl/niceql/raw/master/to_niceql.png "To_niceql")
 
 ###PG errors prettifier 
 before: 
-![alt text](https://github.com/alekseyl/niceql/err_was.png "To_niceql")
+![alt text](https://github.com/alekseyl/niceql/raw/master/err_was.png "To_niceql")
 
 after:
-![alt text](https://github.com/alekseyl/niceql/err_now.png "To_niceql")
+![alt text](https://github.com/alekseyl/niceql/raw/master/err_now.png "To_niceql")
 
 ## Installation
 
