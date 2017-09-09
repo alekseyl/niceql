@@ -1,7 +1,7 @@
 # Niceql
 
-This is small, nice, simple and dependentless solution for SQL prettifiyng for Ruby. 
-It can be used in irb console without any dependencies ( run ./console from bin and look for examples ).
+This is a small, nice, simple and dependentless solution for SQL prettifiyng for Ruby. 
+It can be used in an irb console without any dependencies ( run ./console from bin and look for examples ).
 
 Any reasonable suggestions on formatting/coloring are welcome
 
@@ -39,10 +39,10 @@ Or install it yourself as:
 ### With ActiveRecord
 
 ```ruby
-  # puts prettified to_sql ( you need to call puts otherwise to_niceql looks ugly  )
+  # puts colorized ( or not if you are willing so ) to_niceql ( you need to call puts otherwise to_niceql looks ugly  )
   Model.scope.puts_niceql
   
-  # only formatting without colorization can run as SQL query in connection.execute  
+  # only formatting without colorization can run as a SQL query in connection.execute  
   Model.scope.to_niceql
   
   # prettify PG errors 
@@ -88,7 +88,7 @@ ERR
 Right now gem detects only uppercased form of verbs with very simple indentation and parsing options. 
 
 ## Customizing colors
-If your console support more colors or different schemes, or you prefer different colorization, then you can override ColorizeString methods. Current color are selected with dark and white console themes in mind, so niceql colorization works good for dark, and good enough for white.
+If your console support more colors or different schemes, or if you prefer different colorization, then you can override ColorizeString methods. Current colors are selected with dark and white console themes in mind, so a niceql colorization works good for dark, and good enough for white.
 
 ## Contributing
 
