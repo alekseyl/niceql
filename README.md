@@ -59,7 +59,7 @@ Or install it yourself as:
    #=>  FROM ( VALUES(1), (2) ) AS tmp
 
    # rails combines err with query, so don't forget to do it yourself 
-   # to get real nice result you should execute on your DB prettified_sql! 
+   # to get real nice result you should executeprettified version (i.e. execute( prettified_sql ) !) of query on your DB! 
    # otherwise you will not get such a nice output
    
    puts Niceql::Prettifier.prettify_pg_err(<<-ERR )
