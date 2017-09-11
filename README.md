@@ -40,7 +40,7 @@ Or install it yourself as:
 
 ```ruby
   # puts colorized ( or not if you are willing so ) to_niceql ( you need to call puts otherwise to_niceql looks ugly  )
-  Model.scope.puts_niceql
+  Model.scope.niceql
   
   # only formatting without colorization can run as a SQL query in connection.execute  
   Model.scope.to_niceql

@@ -29,7 +29,7 @@ module Niceql
       Prettifier.prettify_sql(to_sql, false)
     end
 
-    def puts_niceql( colorize = true )
+    def niceql( colorize = true )
       puts Prettifier.prettify_sql( to_sql, colorize )
     end
   end
