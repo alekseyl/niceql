@@ -151,12 +151,12 @@ module Niceql
 
     attr_accessor :indentation_base
 
-    attr_accessor :open_bracket_is_new_liner
+    attr_accessor :open_bracket_is_newliner
 
     def initialize
       self.pg_adapter_with_nicesql = false
       self.indentation_base = 2
-      self.open_bracket_is_new_liner = false
+      self.open_bracket_is_newliner = false
     end
   end
 
