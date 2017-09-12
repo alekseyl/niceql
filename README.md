@@ -29,6 +29,8 @@ gem 'niceql'
 And then execute:
 
     $ bundle
+    # if you are using rails, you may want to install niceql config:
+    rails g niceql:install 
 
 Or install it yourself as:
 
