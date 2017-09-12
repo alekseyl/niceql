@@ -34,6 +34,39 @@ Or install it yourself as:
 
     $ gem install niceql
 
+## Configuration
+
+```ruby
+Niceql.configure do |c|
+  # Setting pg_adapter_with_nicesql to true will force formatting SQL queries
+  # before executing them, this will lead to better SQL-query debugging and much more clearer error messages 
+  # if you are using Postgresql as a data source.  
+  # You can adjust pg_adapter in prooduction but do it at your own risk!
+  # If you need to debug SQL queries in production use exec_niceql
+  # default: false
+  # uncomment next string to enable in development
+  # c.pg_adapter_with_nicesql = Rails.env.development?
+  
+  # spaces count for one indentation
+  c.indentation_base = 2
+  
+  # setting open_bracket_is_newliner to true will start opening brackets '(' with nested subqueries from new line 
+  # i.e. SELECT * FROM ( SELECT * FROM tags ) tags; will transform to: 
+  # SELECT * 
+  # FROM 
+  # ( 
+ #    SELECT * FROM tags 
+ #  ) tags; 
+ # when open_bracket_is_newliner is false: 
+  # SELECT * 
+  # FROM ( 
+ #   SELECT * FROM tags 
+ # ) tags; 
+ # default: false
+  c.open_bracket_is_newliner = false
+end
+```
+
 ## Usage
 
 ### With ActiveRecord
@@ -42,11 +75,11 @@ Or install it yourself as:
   # puts colorized ( or not if you are willing so ) to_niceql ( you need to call puts otherwise to_niceql looks ugly  )
   Model.scope.niceql
   
-  # only formatting without colorization can run as a SQL query in connection.execute  
+  # only formatting without colorization, you can run output of to_niceql as a SQL query in connection.execute  
   Model.scope.to_niceql
   
-  # prettify PG errors 
-  Model.scope_with_err.explain_err 
+  # prettify PG errors if scope runs with any 
+  Model.scope_with_err.exec_niceql 
 ```
 
 ### Without ActiveRecord
@@ -83,12 +116,15 @@ ERR
 #     ORDER BY 1
 
 ```
-## Limitations
-
-Right now gem detects only uppercased form of verbs with very simple indentation and parsing options. 
 
 ## Customizing colors
 If your console support more colors or different schemes, or if you prefer different colorization, then you can override ColorizeString methods. Current colors are selected with dark and white console themes in mind, so a niceql colorization works good for dark, and good enough for white.
+
+## Limitations
+
+Right now gem detects only uppercased form of verbs with simple indentation and parsing options. 
+
+## 
 
 ## Contributing
 
