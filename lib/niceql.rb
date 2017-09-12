@@ -52,6 +52,7 @@ module Niceql
 
 
     def self.prettify_pg_err(err)
+      return err if err[/LINE \d+/].nil?
       err_line_num = err[/LINE \d+/][5..-1].to_i
 
       start_sql_line = err.lines[3][/(HINT|DETAIL)/] ? 4 : 3
