@@ -103,7 +103,7 @@ module Niceql
       sql.gsub( /(#{VERBS}|#{BRACKETS})/).with_index do |verb, index|
         add_new_line = false
         if 'SELECT' == verb
-          indent += config.indentation_base if parentness.last.nil? || parentness.last[:nested]
+          indent += config.indentation_base if !config.open_bracket_is_newliner || parentness.last.nil? || parentness.last[:nested]
           parentness.last[:nested] = true if parentness.last
           add_new_line = !first_verb
         elsif verb == '('
