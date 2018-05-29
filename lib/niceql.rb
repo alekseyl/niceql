@@ -34,7 +34,7 @@ module Niceql
 
   module Prettifier
     INLINE_VERBS = %w(WITH ASC IN COALESCE AS WHEN THEN ELSE END AND UNION ALL WITH ON DISTINCT INTERSECT EXCEPT EXISTS NOT COUNT ROUND CAST).join('| ')
-    NEW_LINE_VERBS = 'SELECT|FROM|WHERE|CASE|ORDER BY|LIMIT|GROUP BY|LEFT JOIN|RIGHT JOIN|JOIN|HAVING|OFFSET|UPDATE'
+    NEW_LINE_VERBS = 'SELECT|FROM|WHERE|CASE|ORDER BY|LIMIT|GROUP BY|(RIGHT |LEFT )*(INNER |OUTER )*JOIN|HAVING|OFFSET|UPDATE'
     POSSIBLE_INLINER = /(ORDER BY|CASE)/
     VERBS = "#{INLINE_VERBS}|#{NEW_LINE_VERBS}"
     STRINGS = /("[^"]+")|('[^']+')/
@@ -95,7 +95,7 @@ module Niceql
       #it's better to remove all new lines because it will break formatting
       sql = sql.gsub("\n", ' ')
       # remove any additional formatting
-      sql = sql.gsub(/[ ]+/, ' ')
+      sql = sql.gsub(/[\s]+/, ' ')
 
       sql = sql.gsub(STRINGS){ |str| StringColorize.colorize_str(str) } if colorize
       first_verb  = true
@@ -137,6 +137,15 @@ module Niceql
     end
   end
 
+  module AbstractAdapterLogPrettifier
+    def log( sql, *args, &block )
+      # \n need to be placed because AR log will start with action description + time info.
+      # rescue sql - just to be sure Prettifier didn't break production
+      formatted_sql = "\n" + Prettifier.prettify_sql(sql, false) rescue sql
+      super( formatted_sql, *args, &block )
+    end
+  end
+
   module ErrorExt
     def to_s
       if ActiveRecord::Base.configurations[Rails.env]['adapter'] == 'postgresql'
@@ -148,16 +157,16 @@ module Niceql
   end
 
   class NiceQLConfig
-    attr_accessor :pg_adapter_with_nicesql
-
-    attr_accessor :indentation_base
-
-    attr_accessor :open_bracket_is_newliner
+    attr_accessor :pg_adapter_with_nicesql,
+                  :indentation_base,
+                  :open_bracket_is_newliner,
+                  :prettify_active_record_log_output
 
     def initialize
       self.pg_adapter_with_nicesql = false
       self.indentation_base = 2
       self.open_bracket_is_newliner = false
+      self.prettify_active_record_log_output = false
     end
   end
 
@@ -167,6 +176,8 @@ module Niceql
 
     if config.pg_adapter_with_nicesql
       ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.include(PostgresAdapterNiceQL)
+    elsif config.prettify_active_record_log_output
+      ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend( AbstractAdapterLogPrettifier )
     end
   end
 

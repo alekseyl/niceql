@@ -49,6 +49,10 @@ Niceql.configure do |c|
   # uncomment next string to enable in development
   # c.pg_adapter_with_nicesql = Rails.env.development?
   
+  # uncomment next string if you want to log prettified SQL inside ActiveRecord logging. 
+  # Default = false
+  # c.prettify_active_record_log_output = true
+  
   # spaces count for one indentation
   c.indentation_base = 2
   
