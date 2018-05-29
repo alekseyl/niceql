@@ -141,7 +141,7 @@ module Niceql
     def log( sql, *args, &block )
       # \n need to be placed because AR log will start with action description + time info.
       # rescue sql - just to be sure Prettifier didn't break production
-      formatted_sql = "\n" + Prettifier.prettify_sql(sql, false) rescue sql
+      formatted_sql = "\n" + Prettifier.prettify_sql(sql) rescue sql
       super( formatted_sql, *args, &block )
     end
   end
@@ -176,8 +176,10 @@ module Niceql
 
     if config.pg_adapter_with_nicesql
       ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.include(PostgresAdapterNiceQL)
-    elsif config.prettify_active_record_log_output
-      ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend( AbstractAdapterLogPrettifier )
+    end
+
+    if config.prettify_active_record_log_output
+      ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(AbstractAdapterLogPrettifier)
     end
   end
 
