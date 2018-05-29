@@ -1,7 +1,7 @@
 # Niceql
 
-This is small, nice, simple and dependentless solution for SQL prettifiyng for Ruby. 
-It can be used in irb console without any dependencies ( run ./console from bin and look for examples ).
+This is a small, nice, simple and dependentless solution for SQL prettifiyng for Ruby. 
+It can be used in an irb console without any dependencies ( run ./console from bin and look for examples ).
 
 Any reasonable suggestions on formatting/coloring are welcome
 
@@ -29,21 +29,59 @@ gem 'niceql'
 And then execute:
 
     $ bundle
+    # if you are using rails, you may want to install niceql config:
+    rails g niceql:install 
 
 Or install it yourself as:
 
     $ gem install niceql
+
+## Configuration
+
+```ruby
+Niceql.configure do |c|
+  # Setting pg_adapter_with_nicesql to true will force formatting SQL queries
+  # before executing them, this will lead to better SQL-query debugging and much more clearer error messages 
+  # if you are using Postgresql as a data source.  
+  # You can adjust pg_adapter in prooduction but do it at your own risk!
+  # If you need to debug SQL queries in production use exec_niceql
+  # default: false
+  # uncomment next string to enable in development
+  # c.pg_adapter_with_nicesql = Rails.env.development?
+  
+  # spaces count for one indentation
+  c.indentation_base = 2
+  
+  # setting open_bracket_is_newliner to true will start opening brackets '(' with nested subqueries from new line 
+  # i.e. SELECT * FROM ( SELECT * FROM tags ) tags; will transform to: 
+  # SELECT * 
+  # FROM 
+  # ( 
+ #    SELECT * FROM tags 
+ #  ) tags; 
+ # when open_bracket_is_newliner is false: 
+  # SELECT * 
+  # FROM ( 
+ #   SELECT * FROM tags 
+ # ) tags; 
+ # default: false
+  c.open_bracket_is_newliner = false
+end
+```
 
 ## Usage
 
 ### With ActiveRecord
 
 ```ruby
-  # prettify to_sql 
+  # puts colorized ( or not if you are willing so ) to_niceql ( you need to call puts otherwise to_niceql looks ugly  )
+  Model.scope.niceql
+  
+  # only formatting without colorization, you can run output of to_niceql as a SQL query in connection.execute  
   Model.scope.to_niceql
   
-  # prettify PG errors 
-  Model.scope_with_err.explain_err 
+  # prettify PG errors if scope runs with any 
+  Model.scope_with_err.exec_niceql 
 ```
 
 ### Without ActiveRecord
@@ -56,7 +94,7 @@ Or install it yourself as:
    #=>  FROM ( VALUES(1), (2) ) AS tmp
 
    # rails combines err with query, so don't forget to do it yourself 
-   # to get real nice result you should execute on your DB prettified_sql! 
+   # to get real nice result you should executeprettified version (i.e. execute( prettified_sql ) !) of query on your DB! 
    # otherwise you will not get such a nice output
    
    puts Niceql::Prettifier.prettify_pg_err(<<-ERR )
@@ -80,22 +118,19 @@ ERR
 #     ORDER BY 1
 
 ```
+
+## Customizing colors
+If your console support more colors or different schemes, or if you prefer different colorization, then you can override ColorizeString methods. Current colors are selected with dark and white console themes in mind, so a niceql colorization works good for dark, and good enough for white.
+
 ## Limitations
 
-Right now it detect only uppercase verbs with simple indentation and parsing options. 
-Also if your console support more colors or different schemes, or you prefer different colorization you can override ColorizeString 
-methods. Current color are selected with dark and white console themes in mind, so it works good for dark, and good enough for white.
+Right now gem detects only uppercased form of verbs with simple indentation and parsing options. 
 
-
-## Development
-
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
-
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+## 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/niceql.
+Bug reports and pull requests are welcome on GitHub at https://github.com/alekseyl/niceql.
 
 ## License
 
