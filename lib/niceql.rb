@@ -15,6 +15,9 @@ module Niceql
       #red ANSI color
       "\e[0;31;49m#{err}\e[0m"
     end
+    def self.uncolorize_str(str)
+      str.gsub(/\e[\[;m\d]+/, '')
+    end
   end
 
   module ArExtentions
@@ -53,6 +56,7 @@ module Niceql
 
     def self.prettify_pg_err(err)
       return err if err[/LINE \d+/].nil?
+      err = StringColorize.uncolorize_str(err)
       err_line_num = err[/LINE \d+/][5..-1].to_i
 
       start_sql_line = err.lines[3][/(HINT|DETAIL)/] ? 4 : 3
@@ -65,7 +69,7 @@ module Niceql
       err_carret_line = err.lines[2][err.lines[1][/LINE \d+:/].length+1..-1]
       # err line painted red completly, so we just remembering it and use
       # to replace after paiting the verbs
-      err_line = err_body[err_line_num-1]
+      err_line = err_body.join[err_line_num-1].gsub(/\s*\n\s*/, ' ')
 
       # when err line is too long postgres quotes it part in doble ...
       if err_quote
