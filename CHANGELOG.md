@@ -1,3 +1,9 @@
+# 0.1.19
+ * add prettify_pg_errors to config - now pg errors prettified output is configurable, 
+   default is true if ActiveRecord::Base defined and db adapter is pg 
+ 
+ * tests for error prettifying 
+
 # 0.1.18
  * add color to logger output
  

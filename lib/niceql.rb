@@ -51,34 +51,62 @@ module Niceql
     end
 
 
-    def self.prettify_pg_err(err)
+    # Postgres error output:
+    # ERROR:  VALUES in FROM must have an alias
+    # LINE 2: FROM ( VALUES(1), (2) );
+    #              ^
+    # HINT:  For example, FROM (VALUES ...) [AS] foo.
+
+    # May go without HINT or DETAIL:
+    # ERROR:  column "usr" does not exist
+    # LINE 1: SELECT usr FROM users ORDER BY 1
+    #                ^
+
+    # ActiveRecord::StatementInvalid will add original SQL query to the bottom like this:
+    # ActiveRecord::StatementInvalid: PG::UndefinedColumn: ERROR:  column "usr" does not exist
+    # LINE 1: SELECT usr FROM users ORDER BY 1
+    #                ^
+    #: SELECT usr FROM users ORDER BY 1
+
+    # prettify_pg_err parses ActiveRecord::StatementInvalid string,
+    # but you may use it without ActiveRecord either way:
+    # prettify_pg_err( err + "\n" + sql ) OR prettify_pg_err( err, sql )
+    # don't mess with original sql query, or prettify_pg_err will deliver incorrect results
+    def self.prettify_pg_err(err, original_sql_query = nil)
       return err if err[/LINE \d+/].nil?
       err_line_num = err[/LINE \d+/][5..-1].to_i
 
+      #
       start_sql_line = err.lines[3][/(HINT|DETAIL)/] ? 4 : 3
-      err_body = err.lines[start_sql_line..-1]
+      err_body = start_sql_line < err.lines.length ? err.lines[start_sql_line..-1] : original_sql_query&.lines
+
+
+      # this means original query is missing so it's nothing to prettify
+      return err unless err_body
+
       err_quote = ( err.lines[1][/\.\.\..+\.\.\./] && err.lines[1][/\.\.\..+\.\.\./][3..-4] ) ||
           ( err.lines[1][/\.\.\..+/] && err.lines[1][/\.\.\..+/][3..-1] )
 
-      # line 2 is err carret line
+      # line[2] is err carret line i.e.: '      ^'
       # err.lines[1][/LINE \d+:/].length+1..-1 - is a position from error quote begin
       err_carret_line = err.lines[2][err.lines[1][/LINE \d+:/].length+1..-1]
-      # err line painted red completly, so we just remembering it and use
+      # err line will be painted in red completely, so we just remembering it and use
       # to replace after paiting the verbs
       err_line = err_body[err_line_num-1]
 
-      # when err line is too long postgres quotes it part in doble ...
+      # when err line is too long postgres quotes it part in double '...'
       if err_quote
         err_quote_carret_offset = err_carret_line.length - err.lines[1].index( '...' ) + 3
         err_carret_line =  ' ' * ( err_line.index( err_quote ) + err_quote_carret_offset ) + "^\n"
       end
 
+      err_carret_line = "  " + err_carret_line if err_body[0].start_with?(': ')
       # if mistake is on last string than err_line.last != \n so we need to prepend \n to carret line
-      err_carret_line = "\n" + err_carret_line unless err_line.last == "\n"
+      err_carret_line = "\n" + err_carret_line unless err_line[-1] == "\n"
 
       #colorizing verbs and strings
       err_body = err_body.join.gsub(/#{VERBS}/ ) { |verb| StringColorize.colorize_verb(verb) }
-      err_body = err_body.gsub(STRINGS){ |str| StringColorize.colorize_str(str) }
+                     .gsub(STRINGS){ |str| StringColorize.colorize_str(str) }
 
       #reassemling error message
       err_body = err_body.lines
@@ -140,7 +168,7 @@ module Niceql
   module AbstractAdapterLogPrettifier
     def log( sql, *args, &block )
       # \n need to be placed because AR log will start with action description + time info.
-      # rescue sql - just to be sure Prettifier didn't break production
+      # rescue sql - just to be sure Prettifier wouldn't break production
       formatted_sql = "\n" + Prettifier.prettify_sql(sql) rescue sql
       super( formatted_sql, *args, &block )
     end
@@ -148,8 +176,8 @@ module Niceql
 
   module ErrorExt
     def to_s
-      if ActiveRecord::Base.configurations[Rails.env]['adapter'] == 'postgresql'
-        Prettifier.prettify_err( super )
+      if Niceql.config.prettify_pg_errors && ActiveRecord::Base.configurations[Rails.env]['adapter'] == 'postgresql'
+        Prettifier.prettify_err(super)
       else
         super
       end
@@ -160,13 +188,16 @@ module Niceql
     attr_accessor :pg_adapter_with_nicesql,
                   :indentation_base,
                   :open_bracket_is_newliner,
-                  :prettify_active_record_log_output
+                  :prettify_active_record_log_output,
+                  :prettify_pg_errors
+
 
     def initialize
       self.pg_adapter_with_nicesql = false
       self.indentation_base = 2
       self.open_bracket_is_newliner = false
       self.prettify_active_record_log_output = false
+      self.prettify_pg_errors = defined? ::ActiveRecord::Base && ActiveRecord::Base.configurations[Rails.env]['adapter'] == 'postgresql'
     end
   end
 
@@ -179,7 +210,11 @@ module Niceql
     end
 
     if config.prettify_active_record_log_output
-      ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend(AbstractAdapterLogPrettifier)
+      ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend( AbstractAdapterLogPrettifier )
+    end
+
+    if config.prettify_pg_errors
+      ::ActiveRecord::StatementInvalid.include( Niceql::ErrorExt )
     end
   end
 
@@ -187,9 +222,7 @@ module Niceql
     @config ||= NiceQLConfig.new
   end
 
-
   if defined? ::ActiveRecord::Base
-    ActiveRecord::StatementInvalid.include( Niceql::ErrorExt )
     ::ActiveRecord::Base.extend ArExtentions
     [::ActiveRecord::Relation, ::ActiveRecord::Associations::CollectionProxy].each { |klass| klass.send(:include, ArExtentions) }
   end

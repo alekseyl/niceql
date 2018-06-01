@@ -53,6 +53,9 @@ Niceql.configure do |c|
   # Default = false
   # c.prettify_active_record_log_output = true
   
+  # now error prettifying is configurable
+  c.prettify_pg_errors = defined? ::ActiveRecord::Base && ActiveRecord::Base.configurations[Rails.env]['adapter'] == 'postgresql'
+  
   # spaces count for one indentation
   c.indentation_base = 2
   
@@ -97,10 +100,11 @@ end
    #=>  SELECT * 
    #=>  FROM ( VALUES(1), (2) ) AS tmp
 
-   # rails combines err with query, so don't forget to do it yourself 
-   # to get real nice result you should executeprettified version (i.e. execute( prettified_sql ) !) of query on your DB! 
-   # otherwise you will not get such a nice output
+   # rails combines err with query, so don't forget to do it yourself:
+   puts Niceql::Prettifier.prettify_pg_err( "#{pg_err_output}\n#{sql_query}" )
    
+   # to get real nice result you should execute prettified version (i.e. execute( prettified_sql ) !) of query on your DB! 
+   # otherwise you will not get such a nice output
    puts Niceql::Prettifier.prettify_pg_err(<<-ERR )
 ERROR:  VALUES in FROM must have an alias
 LINE 2:  FROM ( VALUES(1), (2) )
