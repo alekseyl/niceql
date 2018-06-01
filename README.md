@@ -50,11 +50,12 @@ Niceql.configure do |c|
   # c.pg_adapter_with_nicesql = Rails.env.development?
   
   # uncomment next string if you want to log prettified SQL inside ActiveRecord logging. 
-  # Default = false
+  # default: false
   # c.prettify_active_record_log_output = true
   
   # now error prettifying is configurable
-  c.prettify_pg_errors = defined? ::ActiveRecord::Base && ActiveRecord::Base.configurations[Rails.env]['adapter'] == 'postgresql'
+  # default: defined? ::ActiveRecord::Base && ActiveRecord::Base.configurations[Rails.env]['adapter'] == 'postgresql'
+  # c.prettify_pg_errors = defined? ::ActiveRecord::Base && ActiveRecord::Base.configurations[Rails.env]['adapter'] == 'postgresql'
   
   # spaces count for one indentation
   c.indentation_base = 2
