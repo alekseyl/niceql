@@ -1,4 +1,5 @@
 require "niceql/version"
+require 'niceql/string'
 
 module Niceql
 
