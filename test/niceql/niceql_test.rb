@@ -19,29 +19,40 @@ class NiceQLTest < Minitest::Test
 
   def test_niceql
     etalon = <<~PRETTY_RESULT
-    SELECT some, COUNT(attributes), 
-      CASE WHEN some > 10 THEN '[{"attr": 2}]'::jsonb[] ELSE '{}'::jsonb[] END AS combined_attribute, more 
-      FROM some_table st 
-      RIGHT INNER JOIN some_other so ON so.st_id = st.id 
+    SELECT some,
+      -- valuable comment to inline verb
+      COUNT(attributes), /* some comment */
+      CASE WHEN some > 10 THEN '[{"attr": 2}]'::jsonb[] ELSE '{}'::jsonb[] END AS combined_attribute, more
+      -- valuable comment
+      FROM some_table st
+      RIGHT INNER JOIN some_other so ON so.st_id = st.id
+      /* multi line
+         comment */
       WHERE some NOT IN (
-        SELECT other_some 
-        FROM other_table 
-        WHERE id IN ARRAY[1,2]::bigint[] 
-      ) 
-      ORDER BY some 
-      GROUP BY some 
+        SELECT other_some
+        FROM other_table
+        WHERE id IN ARRAY[1,2]::bigint[]
+      )
+      ORDER BY some
+      GROUP BY some
       HAVING 2 > 1
     PRETTY_RESULT
 
 
     prettySQL = Niceql::Prettifier.prettify_sql( <<~PRETTIFY_ME, false )
-      SELECT some, COUNT(attributes), CASE WHEN some > 10 THEN '[{"attr": 2}]'::jsonb[] ELSE '{}'::jsonb[] END AS combined_attribute, more 
-      FROM some_table st RIGHT INNER JOIN some_other so ON so.st_id = st.id       WHERE some NOT IN (SELECT other_some FROM other_table WHERE id IN ARRAY[1,2]::bigint[] ) ORDER BY   some
+      SELECT some,
+      -- valuable comment to inline verb
+      COUNT(attributes), /* some comment */ CASE WHEN some > 10 THEN '[{"attr": 2}]'::jsonb[] ELSE '{}'::jsonb[] END AS combined_attribute, more 
+      -- valuable comment
+      FROM some_table st RIGHT INNER JOIN some_other so ON so.st_id = st.id      
+      /* multi line
+         comment */
+      WHERE some NOT IN (SELECT other_some FROM other_table WHERE id IN ARRAY[1,2]::bigint[] ) ORDER BY   some
       GROUP BY some       HAVING 2 > 1
     PRETTIFY_ME
 
-    # ETALON goes with \n at the end and prettySQL with space :(
-    cmp_with_etalon(  prettySQL.chop, etalon.chop  )
+    # ETALON goes with \n at the end :(
+    cmp_with_etalon(  prettySQL, etalon.chop  )
   end
 
 
