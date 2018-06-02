@@ -1,3 +1,6 @@
+# 0.1.20
+ * Add respect for SQL comments single lined, multi lined, and inline
+ 
 # 0.1.19
  * add prettify_pg_errors to config - now pg errors prettified output is configurable, 
    default is true if ActiveRecord::Base defined and db adapter is pg 
