@@ -19,11 +19,12 @@ class NiceQLTest < Minitest::Test
 
   def test_niceql
     etalon = <<~PRETTY_RESULT
+    -- valuable comment first line
     SELECT some,
       -- valuable comment to inline verb
       COUNT(attributes), /* some comment */
       CASE WHEN some > 10 THEN '[{"attr": 2}]'::jsonb[] ELSE '{}'::jsonb[] END AS combined_attribute, more
-      -- valuable comment
+      -- valuable comment to newline verb
       FROM some_table st
       RIGHT INNER JOIN some_other so ON so.st_id = st.id
       /* multi line
@@ -40,15 +41,15 @@ class NiceQLTest < Minitest::Test
 
 
     prettySQL = Niceql::Prettifier.prettify_sql( <<~PRETTIFY_ME, false )
+      -- valuable comment first line
       SELECT some,
       -- valuable comment to inline verb
       COUNT(attributes), /* some comment */ CASE WHEN some > 10 THEN '[{"attr": 2}]'::jsonb[] ELSE '{}'::jsonb[] END AS combined_attribute, more 
-      -- valuable comment
+      -- valuable comment to newline verb
       FROM some_table st RIGHT INNER JOIN some_other so ON so.st_id = st.id      
       /* multi line
          comment */
-      WHERE some NOT IN (SELECT other_some FROM other_table WHERE id IN ARRAY[1,2]::bigint[] ) ORDER BY   some
-      GROUP BY some       HAVING 2 > 1
+      WHERE some NOT IN (SELECT other_some FROM other_table WHERE id IN ARRAY[1,2]::bigint[] ) ORDER BY   some GROUP BY some       HAVING 2 > 1
     PRETTIFY_ME
 
     # ETALON goes with \n at the end :(

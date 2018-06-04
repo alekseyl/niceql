@@ -34,7 +34,7 @@ module Niceql
   end
 
   module Prettifier
-    INLINE_VERBS = %w(WITH ASC (IN\s) COALESCE AS WHEN THEN ELSE END AND UNION ALL WITH ON DISTINCT INTERSECT EXCEPT EXISTS NOT COUNT ROUND CAST).join('| ')
+    INLINE_VERBS = %w(WITH ASC (IN\s) COALESCE AS WHEN THEN ELSE END AND UNION ALL ON DISTINCT INTERSECT EXCEPT EXISTS NOT COUNT ROUND CAST).join('| ')
     NEW_LINE_VERBS = 'SELECT|FROM|WHERE|CASE|ORDER BY|LIMIT|GROUP BY|(RIGHT |LEFT )*(INNER |OUTER )*JOIN|HAVING|OFFSET|UPDATE'
     POSSIBLE_INLINER = /(ORDER BY|CASE)/
     VERBS = "#{NEW_LINE_VERBS}|#{INLINE_VERBS}"
@@ -124,11 +124,12 @@ module Niceql
       indent = 0
       parentness = []
 
-      #it's better to remove all new lines because it will break formatting + remove any additional formatting with many spaces
-      # second map! is add newlines at start and begining for all comments started with new line
-      sql = sql.split( SQL_COMMENTS ).each_slice(2).map{ | crmb, cmmnt |
-        [crmb.gsub(/[\s]+/, ' '),
-         cmmnt && ( cmmnt&.match?(/\A\s*$/) ? "\n" + cmmnt[/[\S]+[\s\S]*[\S]+/] + "\n" : cmmnt[/[\S]+[\s\S]*[\S]+/] ) ]
+      sql = sql.split( SQL_COMMENTS ).each_slice(2).map{ | sql_part, comment |
+        # remove additional formatting for sql_parts but leave comment intact
+        [sql_part.gsub(/[\s]+/, ' '),
+         # comment.match?(/\A\s*$/) - SQL_COMMENTS gets all comment content + all whitespaced chars around
+         # so this sql_part.length == 0 || comment.match?(/\A\s*$/) checks does the comment starts from new line
+         comment && ( sql_part.length == 0 || comment.match?(/\A\s*$/) ? "\n#{comment[COMMENT_CONTENT]}\n" : comment[COMMENT_CONTENT] ) ]
       }.flatten.join(' ')
 
       sql.gsub!(/ \n/, "\n")
@@ -136,7 +137,7 @@ module Niceql
       sql.gsub!(STRINGS){ |str| StringColorize.colorize_str(str) } if colorize
 
       first_verb  = true
-      previous_was_comment = false
+      prev_was_comment = false
 
       sql.gsub!( /(#{VERBS}|#{BRACKETS}|#{SQL_COMMENTS_CLEARED})/) do |verb|
         if 'SELECT' == verb
@@ -145,6 +146,7 @@ module Niceql
           add_new_line = !first_verb
         elsif verb == '('
           next_closing_bracket = Regexp.last_match.post_match.index(')')
+          # check if brackets contains SELECT statement
           add_new_line = !!Regexp.last_match.post_match[0..next_closing_bracket][/SELECT/] && config.open_bracket_is_newliner
           parentness << { nested: add_new_line }
         elsif verb == ')'
@@ -160,26 +162,40 @@ module Niceql
         else
           add_new_line = verb[/(#{INLINE_VERBS})/].nil?
         end
-        first_verb = false
 
-        verb = verb[COMMENT_CONTENT] if verb[SQL_COMMENTS_CLEARED]
         # !add_new_line && previous_was_comment means we had newlined comment, and now even
         # if verb is inline verb we will need to add new line with indentation BUT all
-        # newliners match with a space before so we need to strip it
-        verb.lstrip! if !add_new_line && previous_was_comment
+        # inliners match with a space before so we need to strip it
+        verb.lstrip! if !add_new_line && prev_was_comment
+
+        add_new_line = prev_was_comment unless add_new_line
+        add_indent = !first_verb && add_new_line
+
+        if verb[SQL_COMMENTS_CLEARED]
+          verb = verb[COMMENT_CONTENT]
+          prev_was_comment = true
+        else
+          first_verb = false
+          prev_was_comment = false
+        end
+
         verb = StringColorize.colorize_verb(verb) if !['(', ')'].include?(verb) && colorize
-        (previous_was_comment || add_new_line ? indent_multiline(verb, indent) : verb).tap{ previous_was_comment = !verb.to_s[SQL_COMMENTS_CLEARED].nil? }
+
+        subs = ( add_indent ? indent_multiline(verb, indent) : verb)
+        !first_verb && add_new_line ? "\n" + subs : subs
       end
-      sql.gsub( /\s+\n/, "\n" ).gsub(/\s+\z/, '')
+
+      # clear all spaces before newlines, and all whitespaces before string end
+      sql.tap{ |slf| slf.gsub!( /\s+\n/, "\n" ) }.tap{ |slf| slf.gsub!(/\s+\z/, '') }
     end
 
     private
     def self.indent_multiline( verb, indent )
-      # byebug
-      if verb.match?(/.\n./)
-        verb.lines.map!{|ln| "\n#{' ' * indent}" + ln}.join
+      #
+      if verb.match?(/.\s*\n\s*./)
+        verb.lines.map!{|ln| "#{' ' * indent}" + ln}.join("\n")
       else
-        "\n#{' ' * indent}" + verb.to_s
+        "#{' ' * indent}" + verb.to_s
       end
     end
   end
