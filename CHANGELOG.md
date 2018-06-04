@@ -1,3 +1,6 @@
+# 0.1.21
+ * fix bug for SQL started with comment 
+ 
 # 0.1.20
  * Add respect for SQL comments single lined, multi lined, and inline
  
