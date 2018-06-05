@@ -1,3 +1,6 @@
+# 0.1.22
+ * multi query formatting 
+
 # 0.1.21
  * fix bug for SQL started with comment 
  

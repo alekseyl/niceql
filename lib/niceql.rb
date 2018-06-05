@@ -189,6 +189,17 @@ module Niceql
       sql.tap{ |slf| slf.gsub!( /\s+\n/, "\n" ) }.tap{ |slf| slf.gsub!(/\s+\z/, '') }
     end
 
+    def self.prettify_multiple( sql_multi, colorize = true )
+      sql_multi.split( /(?>#{SQL_COMMENTS})|(\;)/ ).inject(['']) { |queries, pattern|
+        queries.last << pattern
+        queries << '' if pattern == ';'
+        queries
+      }.map!{ |sql|
+        # we were splitting by comments and ;, so if next sql start with comment we've got a misplaced \n\n
+        sql.match?(/\A\s+\z/) ? nil : prettify_sql( sql, colorize )
+      }.compact.join("\n\n")
+    end
+
     private
     def self.indent_multiline( verb, indent )
       #

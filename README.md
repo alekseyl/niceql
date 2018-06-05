@@ -1,7 +1,7 @@
 # Niceql
 
 This is a small, nice, simple and dependentless solution for SQL prettifiyng for Ruby. 
-It can be used in an irb console without any dependencies ( run ./console from bin and look for examples ).
+It can be used in an irb console without any dependencies ( run bin/console and look for examples ).
 
 Any reasonable suggestions on formatting/coloring are welcome
 
@@ -95,36 +95,46 @@ end
 ### Without ActiveRecord
 
 ```ruby
-   puts Niceql::Prettifier.prettify_sql("SELECT * FROM ( VALUES(1), (2) ) AS tmp")
    
-   # see colors in irb %) 
-   #=>  SELECT * 
-   #=>  FROM ( VALUES(1), (2) ) AS tmp
+    puts Niceql::Prettifier.prettify_sql("SELECT * FROM ( VALUES(1), (2) ) AS tmp")
+    #=>  SELECT * 
+    #=>  FROM ( VALUES(1), (2) ) AS tmp
+    
+    puts Niceql::Prettifier.prettify_multiple("SELECT * FROM ( VALUES(1), (2) ) AS tmp; SELECT * FROM table")
+    
+    #=>  SELECT * 
+    #=>  FROM ( VALUES(1), (2) ) AS tmp;
+    #=>
+    #=>  SELECT * 
+    #=>  FROM table
+   
+   
+
 
    # rails combines err with query, so don't forget to do it yourself:
    puts Niceql::Prettifier.prettify_pg_err( "#{pg_err_output}\n#{sql_query}" )
    
    # to get real nice result you should execute prettified version (i.e. execute( prettified_sql ) !) of query on your DB! 
    # otherwise you will not get such a nice output
-   puts Niceql::Prettifier.prettify_pg_err(<<-ERR )
-ERROR:  VALUES in FROM must have an alias
-LINE 2:  FROM ( VALUES(1), (2) )
-              ^
-HINT:  For example, FROM (VALUES ...) [AS] foo.
- SELECT err 
- FROM ( VALUES(1), (2) )
- ORDER BY 1
-ERR
-   
-
-# ERROR:  VALUES in FROM must have an alias
-# LINE 2:  FROM ( VALUES(1), (2) )
-#               ^
-#     HINT:  For example, FROM (VALUES ...) [AS] foo.
-#     SELECT err
-#     FROM ( VALUES(1), (2) )
-#          ^
-#     ORDER BY 1
+    puts Niceql::Prettifier.prettify_pg_err(<<~ERR )
+        ERROR:  VALUES in FROM must have an alias
+        LINE 2:  FROM ( VALUES(1), (2) )
+                      ^
+        HINT:  For example, FROM (VALUES ...) [AS] foo.
+         SELECT err 
+         FROM ( VALUES(1), (2) )
+         ORDER BY 1
+    ERR
+       
+    
+    # ERROR:  VALUES in FROM must have an alias
+    # LINE 2:  FROM ( VALUES(1), (2) )
+    #               ^
+    #     HINT:  For example, FROM (VALUES ...) [AS] foo.
+    #     SELECT err
+    #     FROM ( VALUES(1), (2) )
+    #          ^
+    #     ORDER BY 1
 
 ```
 
