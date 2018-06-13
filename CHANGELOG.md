@@ -1,3 +1,7 @@
+# 0.1.23
+ * +LATERAL verb
+ * removed hidden rails dependencies PR(https://github.com/alekseyl/niceql/pull/9)
+ 
 # 0.1.22
  * multi query formatting 
 
