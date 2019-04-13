@@ -82,7 +82,7 @@ module Niceql
 
       #
       start_sql_line = err.lines[3][/(HINT|DETAIL)/] ? 4 : 3
-      err_body = start_sql_line < err.lines.length ? err.lines[start_sql_line..-1] : original_sql_query&.lines
+      err_body = start_sql_line < err.lines.length ? err.lines[start_sql_line..-1] : ( original_sql_query && original_sql_query.lines )
 
 
       # this means original query is missing so it's nothing to prettify
