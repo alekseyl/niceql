@@ -1,3 +1,7 @@
+# 0.1.24
+
+* No features, just strict ruby dependency for >= 2.3 and travis fix for ruby 2.3
+
 # 0.1.23
  * +LATERAL verb
  * removed hidden rails dependencies PR(https://github.com/alekseyl/niceql/pull/9)
