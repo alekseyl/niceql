@@ -5,7 +5,7 @@ It can be used in an irb console without any dependencies ( run bin/console and 
 
 Any reasonable suggestions on formatting/coloring are welcome
 
-**Please pay attention: untill issue https://github.com/alekseyl/niceql/issues/16 is resolved any UPDATE or INSERT request will corrupt your data, don't use on production**
+**Please pay attention: untill issue https://github.com/alekseyl/niceql/issues/16 is resolved any UPDATE or INSERT request will corrupt your data, don't use on production!**
 
  
 ## Before/After 
