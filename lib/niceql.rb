@@ -229,7 +229,7 @@ module Niceql
 
   module ErrorExt
     def to_s
-      if Niceql.config.prettify_pg_errors && ActiveRecord::Base.connection_config['adapter'] == 'postgresql'
+      if Niceql.config.prettify_pg_errors && ActiveRecord::Base.connection_db_config['adapter'] == 'postgresql'
         Prettifier.prettify_err(super)
       else
         super
@@ -250,7 +250,7 @@ module Niceql
       self.indentation_base = 2
       self.open_bracket_is_newliner = false
       self.prettify_active_record_log_output = false
-      self.prettify_pg_errors = defined? ::ActiveRecord::Base && ActiveRecord::Base.connection_config['adapter'] == 'postgresql'
+      self.prettify_pg_errors = defined? ::ActiveRecord::Base && ActiveRecord::Base.connection_db_config['adapter'] == 'postgresql'
     end
   end
 
