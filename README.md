@@ -1,6 +1,6 @@
 # Niceql
 
-This is a small, nice, simple and dependentless solution for SQL prettifiyng for Ruby. 
+This is a small, nice, simple and no-dependency solution for SQL prettifying for Ruby. 
 It can be used in an irb console without any dependencies ( run bin/console and look for examples ).
 
 Any reasonable suggestions on formatting/coloring are welcome
