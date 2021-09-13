@@ -43,7 +43,7 @@ Niceql.configure do |c|
   # Setting pg_adapter_with_nicesql to true will force formatting SQL queries
   # before executing them, this will lead to better SQL-query debugging and much more clearer error messages 
   # if you are using Postgresql as a data source.  
-  # You can adjust pg_adapter in prooduction but do it at your own risk!
+  # You can adjust pg_adapter in production but do it at your own risk!
   # If you need to debug SQL queries in production use exec_niceql
   # default: false
   # uncomment next string to enable in development
