@@ -2,13 +2,6 @@ require "niceql/version"
 require 'niceql/string'
 
 module Niceql
-  def self.rails_connection_config
-    if Gem::Version.new(Rails.version) >= Gem::Version.new('6.1.0')
-      ActiveRecord::Base.connection_db_config
-    else
-      ActiveRecord::Base.connection_config
-    end
-  end
 
   module StringColorize
     def self.colorize_verb( str)
@@ -235,15 +228,18 @@ module Niceql
 
   module ErrorExt
     def to_s
-      if Niceql.config.prettify_pg_errors && Niceql.rails_connection_config['adapter'] == 'postgresql'
-        Prettifier.prettify_err(super)
-      else
-        super
-      end
+      Niceql.config.prettify_pg_errors ? Prettifier.prettify_err(super) : super
     end
   end
 
   class NiceQLConfig
+    def ar_using_pg_adapter?
+      return false unless defined?(::ActiveRecord::Base)
+
+      config = ActiveRecord::Base.try(:connection_db_config) || ActiveRecord::Base.try(:connection_config)
+      config&.dig('adapter') == 'postgresql'
+    end
+
     attr_accessor :pg_adapter_with_nicesql,
                   :indentation_base,
                   :open_bracket_is_newliner,
@@ -256,25 +252,20 @@ module Niceql
       self.indentation_base = 2
       self.open_bracket_is_newliner = false
       self.prettify_active_record_log_output = false
-      self.prettify_pg_errors = defined? ::ActiveRecord::Base && Niceql.rails_connection_config['adapter'] == 'postgresql'
+      self.prettify_pg_errors = ar_using_pg_adapter?
     end
   end
-
 
   def self.configure
     yield( config )
 
-    if config.pg_adapter_with_nicesql
-      ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.include(PostgresAdapterNiceQL)
-    end
+    return unless defined? ::ActiveRecord::Base
 
-    if config.prettify_active_record_log_output
-      ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend( AbstractAdapterLogPrettifier )
-    end
+    ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.include(PostgresAdapterNiceQL) if config.pg_adapter_with_nicesql
 
-    if config.prettify_pg_errors
-      ::ActiveRecord::StatementInvalid.include( Niceql::ErrorExt )
-    end
+    ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend( AbstractAdapterLogPrettifier ) if config.prettify_active_record_log_output
+
+    ::ActiveRecord::StatementInvalid.include( Niceql::ErrorExt ) if config.prettify_pg_errors && config.ar_using_pg_adapter?
   end
 
   def self.config
