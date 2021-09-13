@@ -2,6 +2,13 @@ require "niceql/version"
 require 'niceql/string'
 
 module Niceql
+  def self.rails_connection_config
+    if Gem::Version.new(Rails.version) >= Gem::Version.new('6.1.0')
+      ActiveRecord::Base.connection_db_config
+    else
+      ActiveRecord::Base.connection_config
+    end
+  end
 
   module StringColorize
     def self.colorize_verb( str)
@@ -48,7 +55,6 @@ module Niceql
     def self.config
       Niceql.config
     end
-
 
     def self.prettify_err(err)
       prettify_pg_err( err.to_s )
@@ -229,7 +235,7 @@ module Niceql
 
   module ErrorExt
     def to_s
-      if Niceql.config.prettify_pg_errors && ActiveRecord::Base.connection_config['adapter'] == 'postgresql'
+      if Niceql.config.prettify_pg_errors && Niceql.rails_connection_config['adapter'] == 'postgresql'
         Prettifier.prettify_err(super)
       else
         super
@@ -250,7 +256,7 @@ module Niceql
       self.indentation_base = 2
       self.open_bracket_is_newliner = false
       self.prettify_active_record_log_output = false
-      self.prettify_pg_errors = defined? ::ActiveRecord::Base && ActiveRecord::Base.connection_config['adapter'] == 'postgresql'
+      self.prettify_pg_errors = defined? ::ActiveRecord::Base && Niceql.rails_connection_config['adapter'] == 'postgresql'
     end
   end
 
