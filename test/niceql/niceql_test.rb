@@ -103,8 +103,4 @@ class NiceQLTest < Minitest::Test
 
   end
 
-  test 'ar_using_pg_adapter? whenever AR is not defined will be false' do
-    assert( !Niceql::NiceQLConfig.new.ar_using_pg_adapter? )
-  end
-
 end

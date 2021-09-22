@@ -1,3 +1,8 @@
+# 0.1.4
+* Fix to issue https://github.com/alekseyl/niceql/pull/17#issuecomment-924278172. ActiveRecord base config is no longer a hash, 
+so it does not have dig method, hence it's breaking the ar_using_pg_adapter? method. 
+* active_record added as development dependency :( for proper testing cover. 
+
 # 0.1.3
 
 * ActiveRecord pg check for config now will try both connection_db_config and connection_config for adapter verification 

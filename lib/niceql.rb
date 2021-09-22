@@ -236,8 +236,10 @@ module Niceql
     def ar_using_pg_adapter?
       return false unless defined?(::ActiveRecord::Base)
 
-      config = ActiveRecord::Base.try(:connection_db_config) || ActiveRecord::Base.try(:connection_config)
-      config&.dig('adapter') == 'postgresql'
+      adapter = ActiveRecord::Base.try(:connection_db_config).try(:adapter) ||
+        ActiveRecord::Base.try(:connection_config)&.with_indifferent_access&.dig(:adapter)
+
+      adapter == 'postgresql'
     end
 
     attr_accessor :pg_adapter_with_nicesql,
