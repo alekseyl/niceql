@@ -1,6 +1,5 @@
 require 'test_helper'
 require 'differ'
-require 'niceql'
 require 'byebug'
 
 ::ActiveRecord::StatementInvalid.include( Niceql::ErrorExt )
