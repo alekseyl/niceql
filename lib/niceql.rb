@@ -1,5 +1,4 @@
 require "niceql/version"
-require 'niceql/string'
 
 module Niceql
 
@@ -45,167 +44,181 @@ module Niceql
     SQL_COMMENTS_CLEARED = /(\s*?--.+\s{1})|(\s*$\s*\/\*[^\/\*]*\*\/\s{1})/
     COMMENT_CONTENT = /[\S]+[\s\S]*[\S]+/
 
-    def self.config
-      Niceql.config
-    end
-
-    def self.prettify_err(err)
-      prettify_pg_err( err.to_s )
-    end
-
-
-    # Postgres error output:
-    # ERROR:  VALUES in FROM must have an alias
-    # LINE 2: FROM ( VALUES(1), (2) );
-    #              ^
-    # HINT:  For example, FROM (VALUES ...) [AS] foo.
-
-    # May go without HINT or DETAIL:
-    # ERROR:  column "usr" does not exist
-    # LINE 1: SELECT usr FROM users ORDER BY 1
-    #                ^
-
-    # ActiveRecord::StatementInvalid will add original SQL query to the bottom like this:
-    # ActiveRecord::StatementInvalid: PG::UndefinedColumn: ERROR:  column "usr" does not exist
-    # LINE 1: SELECT usr FROM users ORDER BY 1
-    #                ^
-    #: SELECT usr FROM users ORDER BY 1
-
-    # prettify_pg_err parses ActiveRecord::StatementInvalid string,
-    # but you may use it without ActiveRecord either way:
-    # prettify_pg_err( err + "\n" + sql ) OR prettify_pg_err( err, sql )
-    # don't mess with original sql query, or prettify_pg_err will deliver incorrect results
-    def self.prettify_pg_err(err, original_sql_query = nil)
-      return err if err[/LINE \d+/].nil?
-      err_line_num = err[/LINE \d+/][5..-1].to_i
-
-      #
-      start_sql_line = err.lines[3][/(HINT|DETAIL)/] ? 4 : 3
-      err_body = start_sql_line < err.lines.length ? err.lines[start_sql_line..-1] : original_sql_query&.lines
-
-
-      # this means original query is missing so it's nothing to prettify
-      return err unless err_body
-
-      err_quote = ( err.lines[1][/\.\.\..+\.\.\./] && err.lines[1][/\.\.\..+\.\.\./][3..-4] ) ||
-          ( err.lines[1][/\.\.\..+/] && err.lines[1][/\.\.\..+/][3..-1] )
-
-      # line[2] is err carret line i.e.: '      ^'
-      # err.lines[1][/LINE \d+:/].length+1..-1 - is a position from error quote begin
-      err_carret_line = err.lines[2][err.lines[1][/LINE \d+:/].length+1..-1]
-      # err line will be painted in red completely, so we just remembering it and use
-      # to replace after paiting the verbs
-      err_line = err_body[err_line_num-1]
-
-      # when err line is too long postgres quotes it part in double '...'
-      if err_quote
-        err_quote_carret_offset = err_carret_line.length - err.lines[1].index( '...' ) + 3
-        err_carret_line =  ' ' * ( err_line.index( err_quote ) + err_quote_carret_offset ) + "^\n"
+    class << self
+      def config
+        Niceql.config
       end
 
-      err_carret_line = "  " + err_carret_line if err_body[0].start_with?(': ')
-      # if mistake is on last string than err_line.last != \n so we need to prepend \n to carret line
-      err_carret_line = "\n" + err_carret_line unless err_line[-1] == "\n"
-
-      #colorizing verbs and strings
-      err_body = err_body.join.gsub(/#{VERBS}/ ) { |verb| StringColorize.colorize_verb(verb) }
-                     .gsub(STRINGS){ |str| StringColorize.colorize_str(str) }
-
-      #reassemling error message
-      err_body = err_body.lines
-      err_body[err_line_num-1]= StringColorize.colorize_err( err_line )
-      err_body.insert( err_line_num, StringColorize.colorize_err( err_carret_line ) )
-
-      err.lines[0..start_sql_line-1].join + err_body.join
-    end
-
-    def self.prettify_sql( sql, colorize = true )
-      indent = 0
-      parentness = []
-
-      sql = sql.split( SQL_COMMENTS ).each_slice(2).map{ | sql_part, comment |
-        # remove additional formatting for sql_parts but leave comment intact
-        [sql_part.gsub(/[\s]+/, ' '),
-         # comment.match?(/\A\s*$/) - SQL_COMMENTS gets all comment content + all whitespaced chars around
-         # so this sql_part.length == 0 || comment.match?(/\A\s*$/) checks does the comment starts from new line
-         comment && ( sql_part.length == 0 || comment.match?(/\A\s*$/) ? "\n#{comment[COMMENT_CONTENT]}\n" : comment[COMMENT_CONTENT] ) ]
-      }.flatten.join(' ')
-
-      sql.gsub!(/ \n/, "\n")
-
-      sql.gsub!(STRINGS){ |str| StringColorize.colorize_str(str) } if colorize
-
-      first_verb  = true
-      prev_was_comment = false
-
-      sql.gsub!( /(#{VERBS}|#{BRACKETS}|#{SQL_COMMENTS_CLEARED})/) do |verb|
-        if 'SELECT' == verb
-          indent += config.indentation_base if !config.open_bracket_is_newliner || parentness.last.nil? || parentness.last[:nested]
-          parentness.last[:nested] = true if parentness.last
-          add_new_line = !first_verb
-        elsif verb == '('
-          next_closing_bracket = Regexp.last_match.post_match.index(')')
-          # check if brackets contains SELECT statement
-          add_new_line = !!Regexp.last_match.post_match[0..next_closing_bracket][/SELECT/] && config.open_bracket_is_newliner
-          parentness << { nested: add_new_line }
-        elsif verb == ')'
-          # this also covers case when right bracket is used without corresponding left one
-          add_new_line = parentness.last.nil? || parentness.last[:nested]
-          indent -= ( parentness.last.nil? ? 2 * config.indentation_base : (parentness.last[:nested] ? config.indentation_base : 0) )
-          indent = 0 if indent < 0
-          parentness.pop
-        elsif verb[POSSIBLE_INLINER]
-          # in postgres ORDER BY can be used in aggregation function this will keep it
-          # inline with its agg function
-          add_new_line = parentness.last.nil? || parentness.last[:nested]
-        else
-          add_new_line = verb[/(#{INLINE_VERBS})/].nil?
-        end
-
-        # !add_new_line && previous_was_comment means we had newlined comment, and now even
-        # if verb is inline verb we will need to add new line with indentation BUT all
-        # inliners match with a space before so we need to strip it
-        verb.lstrip! if !add_new_line && prev_was_comment
-
-        add_new_line = prev_was_comment unless add_new_line
-        add_indent = !first_verb && add_new_line
-
-        if verb[SQL_COMMENTS_CLEARED]
-          verb = verb[COMMENT_CONTENT]
-          prev_was_comment = true
-        else
-          first_verb = false
-          prev_was_comment = false
-        end
-
-        verb = StringColorize.colorize_verb(verb) if !['(', ')'].include?(verb) && colorize
-
-        subs = ( add_indent ? indent_multiline(verb, indent) : verb)
-        !first_verb && add_new_line ? "\n" + subs : subs
+      def prettify_err(err, original_sql_query = nil)
+        prettify_pg_err( err.to_s, original_sql_query )
       end
 
-      # clear all spaces before newlines, and all whitespaces before string end
-      sql.tap{ |slf| slf.gsub!( /\s+\n/, "\n" ) }.tap{ |slf| slf.gsub!(/\s+\z/, '') }
-    end
 
-    def self.prettify_multiple( sql_multi, colorize = true )
-      sql_multi.split( /(?>#{SQL_COMMENTS})|(\;)/ ).inject(['']) { |queries, pattern|
-        queries.last << pattern
-        queries << '' if pattern == ';'
-        queries
-      }.map!{ |sql|
-        # we were splitting by comments and ;, so if next sql start with comment we've got a misplaced \n\n
-        sql.match?(/\A\s+\z/) ? nil : prettify_sql( sql, colorize )
-      }.compact.join("\n\n")
-    end
+      # Postgres error output:
+      # ERROR:  VALUES in FROM must have an alias
+      # LINE 2: FROM ( VALUES(1), (2) );
+      #              ^
+      # HINT:  For example, FROM (VALUES ...) [AS] foo.
 
-    private
-    def self.indent_multiline( verb, indent )
-      #
-      if verb.match?(/.\s*\n\s*./)
-        verb.lines.map!{|ln| "#{' ' * indent}" + ln}.join("\n")
-      else
-        "#{' ' * indent}" + verb.to_s
+      # May go without HINT or DETAIL:
+      # ERROR:  column "usr" does not exist
+      # LINE 1: SELECT usr FROM users ORDER BY 1
+      #                ^
+
+      # ActiveRecord::StatementInvalid will add original SQL query to the bottom like this:
+      # ActiveRecord::StatementInvalid: PG::UndefinedColumn: ERROR:  column "usr" does not exist
+      # LINE 1: SELECT usr FROM users ORDER BY 1
+      #                ^
+      #: SELECT usr FROM users ORDER BY 1
+
+      # prettify_pg_err parses ActiveRecord::StatementInvalid string,
+      # but you may use it without ActiveRecord either way:
+      # prettify_pg_err( err + "\n" + sql ) OR prettify_pg_err( err, sql )
+      # don't mess with original sql query, or prettify_pg_err will deliver incorrect results
+      def prettify_pg_err(err, original_sql_query = nil)
+        return err if err[/LINE \d+/].nil?
+        err_line_num = err[/LINE \d+/][5..-1].to_i
+        # LINE 1: SELECT usr FROM users ORDER BY 1
+        err_address_line = err.lines[1]
+
+        start_sql_line = 3 if err.lines.length <= 3
+        # error not always contains HINT
+        start_sql_line ||= err.lines[3][/(HINT|DETAIL)/] ? 4 : 3
+        sql_body = start_sql_line < err.lines.length ? err.lines[start_sql_line..-1] : original_sql_query&.lines
+
+        # this means original query is missing so it's nothing to prettify
+        return err unless sql_body
+
+        # err line will be painted in red completely, so we just remembering it and use
+        # to replace after painting the verbs
+        err_line = sql_body[err_line_num - 1]
+
+
+        #colorizing verbs and strings
+        colorized_sql_body = sql_body.join.gsub(/#{VERBS}/ ) { |verb| StringColorize.colorize_verb(verb) }
+          .gsub(STRINGS){ |str| StringColorize.colorize_str(str) }
+
+        #reassemling error message
+        err_body = colorized_sql_body.lines
+        # replacing colorized line contained error and adding caret line
+        err_body[err_line_num - 1]= StringColorize.colorize_err( err_line )
+
+        err_caret_line = extract_err_caret_line( err_address_line, err_line, sql_body, err )
+        err_body.insert( err_line_num, StringColorize.colorize_err( err_caret_line ) )
+
+        err.lines[0..start_sql_line-1].join + err_body.join
+      end
+
+      def prettify_sql( sql, colorize = true )
+        indent = 0
+        parentness = []
+
+        sql = sql.split( SQL_COMMENTS ).each_slice(2).map{ | sql_part, comment |
+          # remove additional formatting for sql_parts but leave comment intact
+          [sql_part.gsub(/[\s]+/, ' '),
+           # comment.match?(/\A\s*$/) - SQL_COMMENTS gets all comment content + all whitespaced chars around
+           # so this sql_part.length == 0 || comment.match?(/\A\s*$/) checks does the comment starts from new line
+           comment && ( sql_part.length == 0 || comment.match?(/\A\s*$/) ? "\n#{comment[COMMENT_CONTENT]}\n" : comment[COMMENT_CONTENT] ) ]
+        }.flatten.join(' ')
+
+        sql.gsub!(/ \n/, "\n")
+
+        sql.gsub!(STRINGS){ |str| StringColorize.colorize_str(str) } if colorize
+
+        first_verb  = true
+        prev_was_comment = false
+
+        sql.gsub!( /(#{VERBS}|#{BRACKETS}|#{SQL_COMMENTS_CLEARED})/) do |verb|
+          if 'SELECT' == verb
+            indent += config.indentation_base if !config.open_bracket_is_newliner || parentness.last.nil? || parentness.last[:nested]
+            parentness.last[:nested] = true if parentness.last
+            add_new_line = !first_verb
+          elsif verb == '('
+            next_closing_bracket = Regexp.last_match.post_match.index(')')
+            # check if brackets contains SELECT statement
+            add_new_line = !!Regexp.last_match.post_match[0..next_closing_bracket][/SELECT/] && config.open_bracket_is_newliner
+            parentness << { nested: add_new_line }
+          elsif verb == ')'
+            # this also covers case when right bracket is used without corresponding left one
+            add_new_line = parentness.last.nil? || parentness.last[:nested]
+            indent -= ( parentness.last.nil? ? 2 * config.indentation_base : (parentness.last[:nested] ? config.indentation_base : 0) )
+            indent = 0 if indent < 0
+            parentness.pop
+          elsif verb[POSSIBLE_INLINER]
+            # in postgres ORDER BY can be used in aggregation function this will keep it
+            # inline with its agg function
+            add_new_line = parentness.last.nil? || parentness.last[:nested]
+          else
+            add_new_line = verb[/(#{INLINE_VERBS})/].nil?
+          end
+
+          # !add_new_line && previous_was_comment means we had newlined comment, and now even
+          # if verb is inline verb we will need to add new line with indentation BUT all
+          # inliners match with a space before so we need to strip it
+          verb.lstrip! if !add_new_line && prev_was_comment
+
+          add_new_line = prev_was_comment unless add_new_line
+          add_indent = !first_verb && add_new_line
+
+          if verb[SQL_COMMENTS_CLEARED]
+            verb = verb[COMMENT_CONTENT]
+            prev_was_comment = true
+          else
+            first_verb = false
+            prev_was_comment = false
+          end
+
+          verb = StringColorize.colorize_verb(verb) if !%w[( )].include?(verb) && colorize
+
+          subs = ( add_indent ? indent_multiline(verb, indent) : verb)
+          !first_verb && add_new_line ? "\n" + subs : subs
+        end
+
+        # clear all spaces before newlines, and all whitespaces before strings endings
+        sql.tap{ |slf| slf.gsub!( /\s+\n/, "\n" ) }.tap{ |slf| slf.gsub!(/\s+\z/, '') }
+      end
+
+      def prettify_multiple( sql_multi, colorize = true )
+        sql_multi.split( /(?>#{SQL_COMMENTS})|(\;)/ ).inject(['']) { |queries, pattern|
+          queries.last << pattern
+          queries << '' if pattern == ';'
+          queries
+        }.map!{ |sql|
+          # we were splitting by comments and ;, so if next sql start with comment we've got a misplaced \n\n
+          sql.match?(/\A\s+\z/) ? nil : prettify_sql( sql, colorize )
+        }.compact.join("\n\n")
+      end
+
+      private_class_method
+      def indent_multiline( verb, indent )
+        if verb.match?(/.\s*\n\s*./)
+          verb.lines.map!{|ln| ln.prepend(' ' * indent)}.join("\n")
+        else
+          verb.prepend(' ' * indent)
+        end
+      end
+
+      def extract_err_caret_line( err_address_line, err_line, sql_body, err )
+        # LINE could be quoted ( both sides and sometimes only from one ):
+        # "LINE 1: ...t_id\" = $13 AND \"products\".\"carrier_id\" = $14 AND \"product_t...\n",
+        err_quote = (err_address_line.match(/\.\.\.(.+)\.\.\./) || err_address_line.match(/\.\.\.(.+)/) ).try(:[], 1)
+
+        # line[2] is original err caret line i.e.: '      ^'
+        # err_address_line[/LINE \d+:/].length+1..-1 - is a position from error quote begin
+        err_caret_line = err.lines[2][err_address_line[/LINE \d+:/].length+1..-1]
+
+        # when err line is too long postgres quotes it in double '...'
+        # so we need to reposition caret against original line
+        if err_quote
+          err_quote_caret_offset = err_caret_line.length - err_address_line.index( '...' ).to_i + 3
+          err_caret_line =  ' ' * ( err_line.index( err_quote ) + err_quote_caret_offset ) + "^\n"
+        end
+
+        # older versions of ActiveRecord were adding ': ' before an original query :(
+        err_caret_line.prepend('  ') if sql_body[0].start_with?(': ')
+        # if mistake is on last string than err_line.last != \n then we need to prepend \n to caret line
+        err_caret_line.prepend("\n") unless err_line[-1] == "\n"
+        err_caret_line
       end
     end
   end
@@ -228,7 +241,9 @@ module Niceql
 
   module ErrorExt
     def to_s
-      Niceql.config.prettify_pg_errors ? Prettifier.prettify_err(super) : super
+      # older rails version do not provide sql as a standalone query, instead they
+      # deliver joined message
+      Niceql.config.prettify_pg_errors ? Prettifier.prettify_err(super, try(:sql) ) : super
     end
   end
 
@@ -280,5 +295,3 @@ module Niceql
   end
 
 end
-
-

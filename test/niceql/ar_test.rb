@@ -1,4 +1,3 @@
-require 'active_record'
 require 'active_support/testing/declarative'
 require 'test_helper'
 require 'differ'
@@ -27,4 +26,5 @@ class ARTest < Minitest::Test
       }
     }
   end
+
 end
