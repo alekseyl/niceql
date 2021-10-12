@@ -1,3 +1,10 @@
+# 0.3.0 
+* ruby forced to >= 2.4
+* String match extension no longer needed 
+* fixed issue with missing HINT and DETAIL string ( https://github.com/alekseyl/niceql/issues/18 )
+* both new and old activerecord StatementInvalid formats supported
+* major prettify_pg_err refactoring ( much cleaner code now )
+
 # 0.2.0
 * Fix to issue https://github.com/alekseyl/niceql/pull/17#issuecomment-924278172. ActiveRecord base config is no longer a hash, 
 so it does not have dig method, hence it's breaking the ar_using_pg_adapter? method. 
