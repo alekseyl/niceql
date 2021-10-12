@@ -9,8 +9,8 @@ Gem::Specification.new do |spec|
   spec.authors       = ["alekseyl"]
   spec.email         = ["leshchuk@gmail.com"]
 
-  spec.summary       = %q{This is simple and nice sql prettifier, it splits, indent and colorize SQL query and PG errors if any }
-  spec.description   = %q{This is simple and nice sql prettifier, it splits, indent and colorize SQL query and PG error if any }
+  spec.summary       = %q{This is simple and nice gem for sql prettifying and formatting. Niceql splits, indent and colorize SQL query and PG errors if any }
+  spec.description   = %q{This is simple and nice gem for sql prettifying and formatting. Niceql splits, indent and colorize SQL query and PG errors if any. Seemless activerecord integration }
   spec.homepage      = "https://github.com/alekseyl/niceql"
   spec.license       = "MIT"
 
