@@ -1,9 +1,9 @@
 # Niceql
 
-This is a small, nice, simple and no-dependency solution for SQL prettifying for Ruby. 
+This is a small, nice, simple and zero dependency solution for SQL prettifying for Ruby. 
 It can be used in an irb console without any dependencies ( run bin/console and look for examples ).
 
-Any reasonable suggestions on formatting/coloring are welcome
+Any reasonable suggestions are welcome. 
 
 **Please pay attention: untill issue https://github.com/alekseyl/niceql/issues/16 is resolved any UPDATE or INSERT request might corrupt your data, don't use on production!**
 
@@ -44,9 +44,11 @@ Or install it yourself as:
 ```ruby
 Niceql.configure do |c|
   # Setting pg_adapter_with_nicesql to true will force formatting SQL queries
-  # before executing them, this will lead to better SQL-query debugging and much more clearer error messages 
+  # before execution. Formatted SQL will lead to much better SQL-query debugging and much more clearer error messages 
   # if you are using Postgresql as a data source.  
+  # 
   # You can adjust pg_adapter in production but do it at your own risk!
+  # 
   # If you need to debug SQL queries in production use exec_niceql
   # default: false
   # uncomment next string to enable in development
@@ -56,7 +58,7 @@ Niceql.configure do |c|
   # default: false
   # c.prettify_active_record_log_output = true
   
-  # now error prettifying is configurable
+  # Error prettifying is also configurable
   # default: defined? ::ActiveRecord::Base && ActiveRecord::Base.configurations[Rails.env]['adapter'] == 'postgresql'
   # c.prettify_pg_errors = defined? ::ActiveRecord::Base && ActiveRecord::Base.configurations[Rails.env]['adapter'] == 'postgresql'
   
@@ -85,7 +87,7 @@ end
 ### With ActiveRecord
 
 ```ruby
-  # puts colorized ( or not if you are willing so ) to_niceql ( you need to call puts otherwise to_niceql looks ugly  )
+  # puts colorized and formatted corresponding SQL query
   Model.scope.niceql
   
   # only formatting without colorization, you can run output of to_niceql as a SQL query in connection.execute  
@@ -110,23 +112,23 @@ end
     #=>
     #=>  SELECT * 
     #=>  FROM table
-   
-   
+    
 
-
-   # rails combines err with query, so don't forget to do it yourself:
-   puts Niceql::Prettifier.prettify_pg_err( "#{pg_err_output}\n#{sql_query}" )
+   puts Niceql::Prettifier.prettify_pg_err( pg_err_output, sql_query )
    
    # to get real nice result you should execute prettified version (i.e. execute( prettified_sql ) !) of query on your DB! 
    # otherwise you will not get such a nice output
-    puts Niceql::Prettifier.prettify_pg_err(<<~ERR )
+    raw_sql = <<~SQL
+     SELECT err 
+     FROM ( VALUES(1), (2) )
+     ORDER BY 1
+    SQL
+
+    puts Niceql::Prettifier.prettify_pg_err(<<~ERR, raw_sql )
         ERROR:  VALUES in FROM must have an alias
         LINE 2:  FROM ( VALUES(1), (2) )
                       ^
         HINT:  For example, FROM (VALUES ...) [AS] foo.
-         SELECT err 
-         FROM ( VALUES(1), (2) )
-         ORDER BY 1
     ERR
        
     
