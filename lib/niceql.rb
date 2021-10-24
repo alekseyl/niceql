@@ -116,9 +116,9 @@ module Niceql
         sql = sql.split( SQL_COMMENTS ).each_slice(2).map{ | sql_part, comment |
           # remove additional formatting for sql_parts but leave comment intact
           [sql_part.gsub(/[\s]+/, ' '),
-           # match?(comment, /\A\s*$/) - SQL_COMMENTS gets all comment content + all whitespaced chars around
-           # so this sql_part.length == 0 || match?(comment, /\A\s*$/) checks does the comment starts from new line
-           comment && ( sql_part.length == 0 || match?(comment, /\A\s*$/) ? "\n#{comment[COMMENT_CONTENT]}\n" : comment[COMMENT_CONTENT] ) ]
+           # comment.match?(/\A\s*$/) - SQL_COMMENTS gets all comment content + all whitespaced chars around
+           # so this sql_part.length == 0 || comment.match?(/\A\s*$/) checks does the comment starts from new line
+           comment && ( sql_part.length == 0 || comment.match?(/\A\s*$/) ? "\n#{comment[COMMENT_CONTENT]}\n" : comment[COMMENT_CONTENT] ) ]
         }.flatten.join(' ')
 
         sql.gsub!(/ \n/, "\n")
@@ -185,13 +185,13 @@ module Niceql
           queries
         }.map!{ |sql|
           # we were splitting by comments and ;, so if next sql start with comment we've got a misplaced \n\n
-          match?(sql, /\A\s+\z/) ? nil : prettify_sql( sql, colorize )
+          sql.match?(/\A\s+\z/) ? nil : prettify_sql( sql, colorize )
         }.compact.join("\n\n")
       end
 
       private_class_method
       def indent_multiline( verb, indent )
-        if match?(verb, /.\s*\n\s*./)
+        if verb.match?(/.\s*\n\s*./)
           verb.lines.map!{|ln| ln.prepend(' ' * indent)}.join("\n")
         else
           verb.prepend(' ' * indent)
@@ -220,10 +220,6 @@ module Niceql
         err_caret_line.prepend("\n") unless err_line[-1] == "\n"
         err_caret_line
       end
-    end
-
-    private_class_method def self.match?(str, pattern)
-      str =~ pattern
     end
   end
 
