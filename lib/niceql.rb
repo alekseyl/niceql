@@ -198,6 +198,7 @@ module Niceql
         end
       end
 
+      private_class_method
       def extract_err_caret_line( err_address_line, err_line, sql_body, err )
         # LINE could be quoted ( both sides and sometimes only from one ):
         # "LINE 1: ...t_id\" = $13 AND \"products\".\"carrier_id\" = $14 AND \"product_t...\n",
