@@ -7,7 +7,7 @@ require 'byebug'
 class NiceQLTest < Minitest::Test
   extend ::ActiveSupport::Testing::Declarative
 
-  def cmp_with_standard(niceql_result, etalon )
+  def assert_equal_standard(niceql_result, etalon )
     if etalon != niceql_result
       puts 'ETALON:----------------------------'
       puts etalon
@@ -16,7 +16,8 @@ class NiceQLTest < Minitest::Test
       puts 'DIFF:----------------------------'
       puts Differ.diff(etalon, niceql_result)
     end
-    assert( etalon == niceql_result )
+
+    raise 'Not equal' unless etalon == niceql_result
   end
 
   def test_niceql
@@ -61,7 +62,7 @@ class NiceQLTest < Minitest::Test
     PRETTIFY_ME
 
     # ETALON goes with \n at the end :(
-    cmp_with_standard(prettySQL, etalon.chop  )
+    assert_equal_standard(prettySQL, etalon.chop  )
   end
 
   def broken_sql_sample
@@ -91,9 +92,9 @@ class NiceQLTest < Minitest::Test
 
     sample_err = prepare_sample_err(err, err_template)
 
-    cmp_with_standard(Niceql::Prettifier.prettify_pg_err(err, broken_sql_sample), sample_err )
+    assert_equal_standard(Niceql::Prettifier.prettify_pg_err(err, broken_sql_sample), sample_err )
     # err already has \n as last char so it goes err + sql NOT err + "\n" + sql
-    cmp_with_standard(Niceql::Prettifier.prettify_pg_err(err + broken_sql_sample), sample_err )
+    assert_equal_standard(Niceql::Prettifier.prettify_pg_err(err + broken_sql_sample), sample_err )
   end
 
   test 'error without HINT and ...' do
@@ -105,9 +106,9 @@ class NiceQLTest < Minitest::Test
 
     sample_err = prepare_sample_err(err, err_template)
 
-    cmp_with_standard(Niceql::Prettifier.prettify_pg_err(err, broken_sql_sample), sample_err )
+    assert_equal_standard(Niceql::Prettifier.prettify_pg_err(err, broken_sql_sample), sample_err )
     # err already has \n as last char so it goes err + sql NOT err + "\n" + sql
-    cmp_with_standard(Niceql::Prettifier.prettify_pg_err(err + broken_sql_sample), sample_err )
+    assert_equal_standard(Niceql::Prettifier.prettify_pg_err(err + broken_sql_sample), sample_err )
   end
 
   def prepare_sample_err( base_err, prt_err_sql )
@@ -128,9 +129,9 @@ class NiceQLTest < Minitest::Test
     si = ActiveRecord::StatementInvalid.new( err, sql: broken_sql_sample)
 
     Niceql.config.stub(:prettify_pg_errors, true) do
-      cmp_with_standard( si.to_s, prepare_sample_err(err, err_template) )
+      assert_equal_standard( si.to_s, prepare_sample_err(err, err_template) )
     end
-  end
+  end unless ActiveRecord.version <= Gem::Version.new(5)
 
   test 'Statement Invalid old format' do
     err = <<~ERR
@@ -141,9 +142,9 @@ class NiceQLTest < Minitest::Test
     si = ActiveRecord::StatementInvalid.new(err + broken_sql_sample)
 
     Niceql.config.stub(:prettify_pg_errors, true) do
-      si.singleton_class.undef_method(:sql)
+      si.singleton_class.undef_method(:sql) if si.respond_to?(:sql)
       assert_raises { si.sql }
-      cmp_with_standard( si.to_s, prepare_sample_err(err, err_template) )
+      assert_equal_standard( si.to_s, prepare_sample_err(err, err_template) )
     end
   end
 end

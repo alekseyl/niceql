@@ -1,3 +1,8 @@
+# 0.4.0
+* merged PR https://github.com/alekseyl/niceql/pull/19, now Arel is also extended with niceql methods!!
+* test and better niceql comparisons assertion
+* tests were trialed against rails 4.2 and some additional conditions were added for later cases
+
 # 0.3.0 
 * ruby forced to >= 2.4
 * String match extension no longer needed 

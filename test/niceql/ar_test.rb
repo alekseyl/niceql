@@ -22,6 +22,15 @@ end
 class Comment < ActiveRecord::Base
 end
 
+# ActiveRecord < 6 do not have connection_db_config method
+# so it cannot be stubbed by usual Object stub method.
+class << ActiveRecord::Base
+  def stub_if_defined(name, val_or_callable, *block_args, &block)
+    # stub only if respond otherwise just execute
+    respond_to?( name ) ? stub(name, val_or_callable, *block_args, &block) : yield
+  end
+end
+
 class ARTest < Minitest::Test
   extend ::ActiveSupport::Testing::Declarative
 
@@ -30,7 +39,7 @@ class ARTest < Minitest::Test
   end
 
   test 'ar_using_pg_adapter? whenever AR is < 6.1 ' do
-    ActiveRecord::Base.stub(:connection_db_config, nil) {
+    ActiveRecord::Base.stub_if_defined(:connection_db_config, nil) {
       ActiveRecord::Base.stub(:connection_config, {adapter: 'postgresql', encoding: 'utf8', database: 'niceql_test'}) {
         assert(Niceql::NiceQLConfig.new.ar_using_pg_adapter?)
       }
