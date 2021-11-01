@@ -4,15 +4,15 @@ module Niceql
 
   module StringColorize
     def self.colorize_verb( str)
-      #yellow ANSI color
+      # yellow ANSI color
       "\e[0;33;49m#{str}\e[0m"
     end
     def self.colorize_str(str)
-      #cyan ANSI color
+      # cyan ANSI color
       "\e[0;36;49m#{str}\e[0m"
     end
     def self.colorize_err(err)
-      #red ANSI color
+      # red ANSI color
       "\e[0;31;49m#{err}\e[0m"
     end
   end
@@ -198,6 +198,7 @@ module Niceql
         end
       end
 
+      private_class_method
       def extract_err_caret_line( err_address_line, err_line, sql_body, err )
         # LINE could be quoted ( both sides and sometimes only from one ):
         # "LINE 1: ...t_id\" = $13 AND \"products\".\"carrier_id\" = $14 AND \"product_t...\n",
@@ -289,9 +290,10 @@ module Niceql
     @config ||= NiceQLConfig.new
   end
 
-  if defined? ::ActiveRecord::Base
-    ::ActiveRecord::Base.extend ArExtentions
-    [::ActiveRecord::Relation, ::ActiveRecord::Associations::CollectionProxy].each { |klass| klass.send(:include, ArExtentions) }
+  if defined? ::ActiveRecord
+    [::ActiveRecord::Relation,
+     ::Arel::TreeManager,
+     ::Arel::Nodes::Node].each { |klass| klass.send(:include, ArExtentions) }
   end
 
 end
