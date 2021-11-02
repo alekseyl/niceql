@@ -1,3 +1,6 @@
+# 0.4.1
+* description update 
+
 # 0.4.0
 * merged PR https://github.com/alekseyl/niceql/pull/19, now Arel is also extended with niceql methods!!
 * test and better niceql comparisons assertion
