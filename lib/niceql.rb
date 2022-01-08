@@ -17,21 +17,6 @@ module Niceql
     end
   end
 
-  module ArExtentions
-    def exec_niceql
-      connection.execute( to_niceql )
-    end
-
-    def to_niceql
-      Prettifier.prettify_sql(to_sql, false)
-    end
-
-    def niceql( colorize = true )
-      puts Prettifier.prettify_sql( to_sql, colorize )
-    end
-
-  end
-
   module Prettifier
     INLINE_VERBS = %w(WITH ASC (IN\s) COALESCE AS WHEN THEN ELSE END AND UNION ALL ON DISTINCT INTERSECT EXCEPT EXISTS NOT COUNT ROUND CAST).join('| ')
     NEW_LINE_VERBS = 'SELECT|FROM|WHERE|CASE|ORDER BY|LIMIT|GROUP BY|(RIGHT |LEFT )*(INNER |OUTER )*JOIN( LATERAL)*|HAVING|OFFSET|UPDATE'
@@ -202,7 +187,7 @@ module Niceql
       def extract_err_caret_line( err_address_line, err_line, sql_body, err )
         # LINE could be quoted ( both sides and sometimes only from one ):
         # "LINE 1: ...t_id\" = $13 AND \"products\".\"carrier_id\" = $14 AND \"product_t...\n",
-        err_quote = (err_address_line.match(/\.\.\.(.+)\.\.\./) || err_address_line.match(/\.\.\.(.+)/) ).try(:[], 1)
+        err_quote = (err_address_line.match(/\.\.\.(.+)\.\.\./) || err_address_line.match(/\.\.\.(.+)/) )&.send(:[], 1)
 
         # line[2] is original err caret line i.e.: '      ^'
         # err_address_line[/LINE \d+:/].length+1..-1 - is a position from error quote begin
@@ -224,76 +209,17 @@ module Niceql
     end
   end
 
-  module PostgresAdapterNiceQL
-    def exec_query(sql, name = "SQL", binds = [], prepare: false)
-      # replacing sql with prettified sql, thats all
-      super( Prettifier.prettify_sql(sql, false), name, binds, prepare: prepare )
-    end
-  end
-
-  module AbstractAdapterLogPrettifier
-    def log( sql, *args, &block )
-      # \n need to be placed because AR log will start with action description + time info.
-      # rescue sql - just to be sure Prettifier wouldn't break production
-      formatted_sql = "\n" + Prettifier.prettify_sql(sql) rescue sql
-      super( formatted_sql, *args, &block )
-    end
-  end
-
-  module ErrorExt
-    def to_s
-      # older rails version do not provide sql as a standalone query, instead they
-      # deliver joined message
-      Niceql.config.prettify_pg_errors ? Prettifier.prettify_err(super, try(:sql) ) : super
-    end
-  end
-
   class NiceQLConfig
-    def ar_using_pg_adapter?
-      return false unless defined?(::ActiveRecord::Base)
-
-      adapter = ActiveRecord::Base.try(:connection_db_config).try(:adapter) ||
-        ActiveRecord::Base.try(:connection_config)&.with_indifferent_access&.dig(:adapter)
-
-      adapter == 'postgresql'
-    end
-
-    attr_accessor :pg_adapter_with_nicesql,
-                  :indentation_base,
-                  :open_bracket_is_newliner,
-                  :prettify_active_record_log_output,
-                  :prettify_pg_errors
-
+    attr_accessor :indentation_base, :open_bracket_is_newliner
 
     def initialize
-      self.pg_adapter_with_nicesql = false
       self.indentation_base = 2
       self.open_bracket_is_newliner = false
-      self.prettify_active_record_log_output = false
-      self.prettify_pg_errors = ar_using_pg_adapter?
     end
   end
 
-  def self.configure
-    yield( config )
+  def self.configure; yield( config ) end
 
-    return unless defined? ::ActiveRecord::Base
-
-    ::ActiveRecord::ConnectionAdapters::PostgreSQLAdapter.include(PostgresAdapterNiceQL) if config.pg_adapter_with_nicesql
-
-    ::ActiveRecord::ConnectionAdapters::AbstractAdapter.prepend( AbstractAdapterLogPrettifier ) if config.prettify_active_record_log_output
-
-    ::ActiveRecord::StatementInvalid.include( Niceql::ErrorExt ) if config.prettify_pg_errors && config.ar_using_pg_adapter?
-  end
-
-  def self.config
-    @config ||= NiceQLConfig.new
-  end
-
-  if defined? ::ActiveRecord
-    [::ActiveRecord::Relation,
-     ::Arel::TreeManager,
-     ::Arel::Nodes::Node].each { |klass| klass.send(:include, ArExtentions) }
-  end
+  def self.config; @config ||= NiceQLConfig.new end
 
 end

@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["leshchuk@gmail.com"]
 
   spec.summary       = %q{This is a simple and nice gem for SQL prettifying and formatting. Niceql splits, indent and colorize SQL query and PG errors if any. }
-  spec.description   = %q{This is a simple and nice gem for SQL prettifying and formatting. Niceql splits, indent and colorize SQL query and PG errors if any. Could be used as a standalone gem without any dependencies. Seamless ActiveRecord integration. }
+  spec.description   = %q{This is a simple and nice gem for SQL prettifying and formatting. Niceql splits, indent and colorize SQL query and PG errors if any. Could be used as a standalone gem without any dependencies. Seamless ActiveRecord integration via rails_sql_prettifier gem. }
   spec.homepage      = "https://github.com/alekseyl/niceql"
   spec.license       = "MIT"
 
@@ -31,7 +31,6 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.required_ruby_version = '>= 2.4'
-  spec.add_development_dependency "activerecord", ">= 6.1"
 
   spec.add_development_dependency "bundler", ">= 1"
   spec.add_development_dependency "rake", ">= 12.3.3"
