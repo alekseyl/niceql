@@ -1,3 +1,6 @@
+# 0.5.1
+* No features just some code refactoring
+
 # 0.5.0
 * BREAKING CHANGE! ActiveRecord compatibility extracted to the rails_sql_prettifier gem! 
   If you need niceql funcitonality with rails / active_record plz include rails_sql_prettifier has a 

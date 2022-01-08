@@ -62,36 +62,31 @@ module Niceql
       # don't mess with original sql query, or prettify_pg_err will deliver incorrect results
       def prettify_pg_err(err, original_sql_query = nil)
         return err if err[/LINE \d+/].nil?
-        err_line_num = err[/LINE \d+/][5..-1].to_i
+        # LINE 2: ... -> err_line_num = 2
+        err_line_num = err.match(/LINE (\d+):/)[1].to_i
         # LINE 1: SELECT usr FROM users ORDER BY 1
         err_address_line = err.lines[1]
 
-        start_sql_line = 3 if err.lines.length <= 3
+        sql_start_line_num = 3 if err.lines.length <= 3
         # error not always contains HINT
-        start_sql_line ||= err.lines[3][/(HINT|DETAIL)/] ? 4 : 3
-        sql_body = start_sql_line < err.lines.length ? err.lines[start_sql_line..-1] : original_sql_query&.lines
+        sql_start_line_num ||= err.lines[3][/(HINT|DETAIL)/] ? 4 : 3
+        sql_body_lines = sql_start_line_num < err.lines.length ? err.lines[sql_start_line_num..-1] : original_sql_query&.lines
 
         # this means original query is missing so it's nothing to prettify
-        return err unless sql_body
+        return err unless sql_body_lines
 
-        # err line will be painted in red completely, so we just remembering it and use
-        # to replace after painting the verbs
-        err_line = sql_body[err_line_num - 1]
+        # this is an SQL line with an error.
+        # we need err_line to properly align the caret in the caret line
+        # and to apply a full red colorizing schema on an SQL line with error
+        err_line = sql_body_lines[err_line_num - 1]
 
+        #colorizing verbs, strings and error line
+        err_body = sql_body_lines.map { |ln| ln == err_line ? StringColorize.colorize_err( ln ) : colorize_err_line(ln) }
 
-        #colorizing verbs and strings
-        colorized_sql_body = sql_body.join.gsub(/#{VERBS}/ ) { |verb| StringColorize.colorize_verb(verb) }
-          .gsub(STRINGS){ |str| StringColorize.colorize_str(str) }
-
-        #reassemling error message
-        err_body = colorized_sql_body.lines
-        # replacing colorized line contained error and adding caret line
-        err_body[err_line_num - 1]= StringColorize.colorize_err( err_line )
-
-        err_caret_line = extract_err_caret_line( err_address_line, err_line, sql_body, err )
+        err_caret_line = extract_err_caret_line( err_address_line, err_line, sql_body_lines, err )
         err_body.insert( err_line_num, StringColorize.colorize_err( err_caret_line ) )
 
-        err.lines[0..start_sql_line-1].join + err_body.join
+        err.lines[0..sql_start_line_num-1].join + err_body.join
       end
 
       def prettify_sql( sql, colorize = true )
@@ -183,7 +178,11 @@ module Niceql
         end
       end
 
-      private_class_method
+      def colorize_err_line( line )
+        line.gsub(/#{VERBS}/ ) { |verb| StringColorize.colorize_verb(verb) }
+          .gsub(STRINGS) { |str| StringColorize.colorize_str(str) }
+      end
+
       def extract_err_caret_line( err_address_line, err_line, sql_body, err )
         # LINE could be quoted ( both sides and sometimes only from one ):
         # "LINE 1: ...t_id\" = $13 AND \"products\".\"carrier_id\" = $14 AND \"product_t...\n",
