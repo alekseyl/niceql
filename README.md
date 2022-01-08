@@ -1,6 +1,6 @@
 # Niceql
 
-ATTENTION: Since ver 0.5.0 the ActiveRecord integration will be provided via standalone gem: [rails_sql_prettifier](https://github.com/alekseyl/rails_sql_prettifier)!
+**ATTENTION: Since ver 0.5.0 the ActiveRecord integration will be provided via standalone gem: [rails_sql_prettifier](https://github.com/alekseyl/rails_sql_prettifier)!**
 
 This is a small, nice, simple and zero dependency solution for SQL prettifying for Ruby. 
 It can be used in an irb console without any dependencies ( run bin/console and look for examples ).
