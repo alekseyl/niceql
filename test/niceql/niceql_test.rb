@@ -1,6 +1,7 @@
 require 'test_helper'
 require 'differ'
 require 'byebug'
+require 'awesome_print'
 
 class NiceQLTest < Minitest::Test
   extend ::ActiveSupport::Testing::Declarative
@@ -22,10 +23,10 @@ class NiceQLTest < Minitest::Test
     etalon = <<~PRETTY_RESULT
       -- valuable comment first line
       SELECT some,
-        -- valuable comment to inline verb
-        COUNT(attributes), /* some comment */
+        -- valuable comment to inline keyword
+        column2, COUNT(attributes), /* some comment */ 
         CASE WHEN some > 10 THEN '[{"attr": 2}]'::jsonb[] ELSE '{}'::jsonb[] END AS combined_attribute, more
-        -- valuable comment to newline verb
+        -- valuable comment to newline keyword
         FROM some_table st
         RIGHT INNER JOIN some_other so ON so.st_id = st.id
         /* multi line with semicolon;
@@ -38,29 +39,47 @@ class NiceQLTest < Minitest::Test
         ORDER BY some
         GROUP BY some
         HAVING 2 > 1;
-
-      --comment to second query;
+      --comment to second query with semicolon;
       SELECT other
         FROM other_table;
+      -- third query with complex string literals and UPDATE
+      UPDATE some_table
+        SET string='
+        multiline with   3 spaces string
+      ', second_multiline_str = 'line one' 
+        'line two', dollar_quoted_string = $$ I'll    be back $$, tagged_dollar_quoted_string = $tag$ 
+          with surprise $$!! $$  $not_tag$ still inside first string $not_tag$ 
+       $tag$
+        WHERE id = 1 AND SELECT_id = 2;
     PRETTY_RESULT
 
 
     prettySQL = Niceql::Prettifier.prettify_multiple(<<~PRETTIFY_ME, false)
       -- valuable comment first line
       SELECT some,
-      -- valuable comment to inline verb
-      COUNT(attributes), /* some comment */ CASE WHEN some > 10 THEN '[{"attr": 2}]'::jsonb[] ELSE '{}'::jsonb[] END AS combined_attribute, more 
-      -- valuable comment to newline verb
+      -- valuable comment to inline keyword
+      column2, COUNT(attributes), /* some comment */ CASE WHEN some > 10 THEN '[{"attr": 2}]'::jsonb[] ELSE '{}'::jsonb[] END AS combined_attribute, more 
+      -- valuable comment to newline keyword
       FROM some_table st RIGHT INNER JOIN some_other so ON so.st_id = st.id      
       /* multi line with semicolon;
          comment */
       WHERE some NOT IN (SELECT other_some FROM other_table WHERE id IN ARRAY[1,2]::bigint[] ) ORDER BY   some GROUP BY some       HAVING 2 > 1;
-      --comment to second query;
-         SELECT other FROM other_table;
+      --comment to second query with semicolon;
+      SELECT other FROM other_table;
+
+      -- third query with complex string literals and UPDATE
+      UPDATE some_table SET string='
+        multiline with   3 spaces string
+      ',  second_multiline_str = 'line one' 
+           'line two', 
+       dollar_quoted_string = $$ I'll    be back $$,
+       tagged_dollar_quoted_string = $tag$ 
+          with surprise $$!! $$  $not_tag$ still inside first string $not_tag$ 
+       $tag$ WHERE id = 1 AND SELECT_id = 2;
     PRETTIFY_ME
 
     # ETALON goes with \n at the end :(
-    assert_equal_standard(prettySQL, etalon.chop  )
+    assert_equal_standard(prettySQL, etalon.chop)
   end
 
   def broken_sql_sample
@@ -80,7 +99,7 @@ class NiceQLTest < Minitest::Test
     ERR
   end
 
-  def test_error_prettifier
+  test 'error prettifier' do
     err = <<~ERR
       ERROR: VALUES in FROM must have an alias
       LINE 2: FROM ( VALUES(1), (2) )
@@ -110,8 +129,8 @@ class NiceQLTest < Minitest::Test
   end
 
   def prepare_sample_err( base_err, prt_err_sql )
-    standard_err = base_err + prt_err_sql.gsub(/#{Niceql::Prettifier::VERBS}/ ) { |verb| Niceql::StringColorize.colorize_verb(verb) }
-      .gsub(/#{Niceql::Prettifier::STRINGS }/ ) { |verb| Niceql::StringColorize.colorize_str(verb) }
+    standard_err = base_err + prt_err_sql.gsub(/#{Niceql::Prettifier::KEYWORDS}/ ) { |keyword| Niceql::StringColorize.colorize_keyword(keyword) }
+      .gsub(/#{Niceql::Prettifier::STRINGS }/ ) { |keyword| Niceql::StringColorize.colorize_str(keyword) }
 
     standard_err.gsub!('_COLORIZED_ERR_', Niceql::StringColorize.colorize_err( "FROM ( VALUES(1), (2) )\n")  +
       Niceql::StringColorize.colorize_err( "     ^\n" ) )

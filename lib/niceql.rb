@@ -1,9 +1,11 @@
 require "niceql/version"
+require "securerandom"
+require "forwardable"
 
 module Niceql
 
   module StringColorize
-    def self.colorize_verb( str)
+    def self.colorize_keyword(str)
       # yellow ANSI color
       "\e[0;33;49m#{str}\e[0m"
     end
@@ -15,19 +17,39 @@ module Niceql
       # red ANSI color
       "\e[0;31;49m#{err}\e[0m"
     end
+    def self.colorize_comment(comment)
+      # bright black bold ANSI color
+      "\e[0;90;1;49m#{comment}\e[0m"
+    end
   end
 
   module Prettifier
-    INLINE_VERBS = %w(WITH ASC (IN\s) COALESCE AS WHEN THEN ELSE END AND UNION ALL ON DISTINCT INTERSECT EXCEPT EXISTS NOT COUNT ROUND CAST).join('| ')
-    NEW_LINE_VERBS = 'SELECT|FROM|WHERE|CASE|ORDER BY|LIMIT|GROUP BY|(RIGHT |LEFT )*(INNER |OUTER )*JOIN( LATERAL)*|HAVING|OFFSET|UPDATE'
+    # ?= -- should be present but without being added to MatchData
+    AFTER_KEYWORD_SPACE = '(?=\s{1})'
+    JOIN_KEYWORDS = '(RIGHT\s+|LEFT\s+){0,1}(INNER\s+|OUTER\s+){0,1}JOIN(\s+LATERAL){0,1}'
+    INLINE_KEYWORDS = "WITH|ASC|COALESCE|AS|WHEN|THEN|ELSE|END|AND|UNION|ALL|ON|DISTINCT|INTERSECT|EXCEPT|EXISTS|NOT|COUNT|ROUND|CAST|IN"
+    NEW_LINE_KEYWORDS = "SELECT|FROM|WHERE|CASE|ORDER BY|LIMIT|GROUP BY|HAVING|OFFSET|UPDATE|SET|#{JOIN_KEYWORDS}"
+
     POSSIBLE_INLINER = /(ORDER BY|CASE)/
-    VERBS = "#{NEW_LINE_VERBS}|#{INLINE_VERBS}"
-    STRINGS = /("[^"]+")|('[^']+')/
+    KEYWORDS = "(#{NEW_LINE_KEYWORDS}|#{INLINE_KEYWORDS})#{AFTER_KEYWORD_SPACE}"
+    # ?: -- will not match partial enclosed by (..)
+    MULTILINE_INDENTABLE_LITERAL = /(?:'[^']+'\s*\n+\s*)+(?:'[^']+')+/
+    # STRINGS matched both kind of strings the multiline solid
+    # and single quoted multiline strings with \s*\n+\s* separation
+    STRINGS = /("[^"]+")|((?:'[^']+'\s*\n+\s*)*(?:'[^']+')+)/
     BRACKETS = '[\(\)]'
-    SQL_COMMENTS = /(\s*?--.+\s*)|(\s*?\/\*[^\/\*]*\*\/\s*)/
+    # will match all /* single line and multiline comments */ and -- based comments
+    # the last will be matched as single block whenever comment lines followed each other.
+    # For instance:
+    # SELECT * -- comment 1
+    # -- comment 2
+    # all comments will be matched as a single block
+    SQL_COMMENTS = /(\s*?--[^\n]+\n*)+|(\s*?\/\*[^\/\*]*\*\/\s*)/m
     # only newlined comments will be matched
     SQL_COMMENTS_CLEARED = /(\s*?--.+\s{1})|(\s*$\s*\/\*[^\/\*]*\*\/\s{1})/
     COMMENT_CONTENT = /[\S]+[\s\S]*[\S]+/
+    NAMED_DOLLAR_QUOTED_STRINGS = /[^\$](\$[^\$]+\$)[^\$]/
+    DOLLAR_QUOTED_STRINGS = /(\$\$.*\$\$)/
 
     class << self
       def config
@@ -37,7 +59,6 @@ module Niceql
       def prettify_err(err, original_sql_query = nil)
         prettify_pg_err( err.to_s, original_sql_query )
       end
-
 
       # Postgres error output:
       # ERROR:  VALUES in FROM must have an alias
@@ -89,73 +110,9 @@ module Niceql
         err.lines[0..sql_start_line_num-1].join + err_body.join
       end
 
+
       def prettify_sql( sql, colorize = true )
-        indent = 0
-        parentness = []
-
-        sql = sql.split( SQL_COMMENTS ).each_slice(2).map{ | sql_part, comment |
-          # remove additional formatting for sql_parts but leave comment intact
-          [sql_part.gsub(/[\s]+/, ' '),
-           # comment.match?(/\A\s*$/) - SQL_COMMENTS gets all comment content + all whitespaced chars around
-           # so this sql_part.length == 0 || comment.match?(/\A\s*$/) checks does the comment starts from new line
-           comment && ( sql_part.length == 0 || comment.match?(/\A\s*$/) ? "\n#{comment[COMMENT_CONTENT]}\n" : comment[COMMENT_CONTENT] ) ]
-        }.flatten.join(' ')
-
-        sql.gsub!(/ \n/, "\n")
-
-        sql.gsub!(STRINGS){ |str| StringColorize.colorize_str(str) } if colorize
-
-        first_verb  = true
-        prev_was_comment = false
-
-        sql.gsub!( /(#{VERBS}|#{BRACKETS}|#{SQL_COMMENTS_CLEARED})/) do |verb|
-          if 'SELECT' == verb
-            indent += config.indentation_base if !config.open_bracket_is_newliner || parentness.last.nil? || parentness.last[:nested]
-            parentness.last[:nested] = true if parentness.last
-            add_new_line = !first_verb
-          elsif verb == '('
-            next_closing_bracket = Regexp.last_match.post_match.index(')')
-            # check if brackets contains SELECT statement
-            add_new_line = !!Regexp.last_match.post_match[0..next_closing_bracket][/SELECT/] && config.open_bracket_is_newliner
-            parentness << { nested: add_new_line }
-          elsif verb == ')'
-            # this also covers case when right bracket is used without corresponding left one
-            add_new_line = parentness.last.nil? || parentness.last[:nested]
-            indent -= ( parentness.last.nil? ? 2 * config.indentation_base : (parentness.last[:nested] ? config.indentation_base : 0) )
-            indent = 0 if indent < 0
-            parentness.pop
-          elsif verb[POSSIBLE_INLINER]
-            # in postgres ORDER BY can be used in aggregation function this will keep it
-            # inline with its agg function
-            add_new_line = parentness.last.nil? || parentness.last[:nested]
-          else
-            add_new_line = verb[/(#{INLINE_VERBS})/].nil?
-          end
-
-          # !add_new_line && previous_was_comment means we had newlined comment, and now even
-          # if verb is inline verb we will need to add new line with indentation BUT all
-          # inliners match with a space before so we need to strip it
-          verb.lstrip! if !add_new_line && prev_was_comment
-
-          add_new_line = prev_was_comment unless add_new_line
-          add_indent = !first_verb && add_new_line
-
-          if verb[SQL_COMMENTS_CLEARED]
-            verb = verb[COMMENT_CONTENT]
-            prev_was_comment = true
-          else
-            first_verb = false
-            prev_was_comment = false
-          end
-
-          verb = StringColorize.colorize_verb(verb) if !%w[( )].include?(verb) && colorize
-
-          subs = ( add_indent ? indent_multiline(verb, indent) : verb)
-          !first_verb && add_new_line ? "\n" + subs : subs
-        end
-
-        # clear all spaces before newlines, and all whitespaces before strings endings
-        sql.tap{ |slf| slf.gsub!( /\s+\n/, "\n" ) }.tap{ |slf| slf.gsub!(/\s+\z/, '') }
+        QueryNormalizer.new(sql, colorize).prettified_sql
       end
 
       def prettify_multiple( sql_multi, colorize = true )
@@ -164,22 +121,14 @@ module Niceql
           queries << '' if pattern == ';'
           queries
         }.map!{ |sql|
-          # we were splitting by comments and ;, so if next sql start with comment we've got a misplaced \n\n
+          # we were splitting by comments and ';', so if next sql start with comment we've got a misplaced \n\n
           sql.match?(/\A\s+\z/) ? nil : prettify_sql( sql, colorize )
-        }.compact.join("\n\n")
+        }.compact.join("\n")
       end
 
-      private_class_method
-      def indent_multiline( verb, indent )
-        if verb.match?(/.\s*\n\s*./)
-          verb.lines.map!{|ln| ln.prepend(' ' * indent)}.join("\n")
-        else
-          verb.prepend(' ' * indent)
-        end
-      end
-
+      private
       def colorize_err_line( line )
-        line.gsub(/#{VERBS}/ ) { |verb| StringColorize.colorize_verb(verb) }
+        line.gsub(/#{KEYWORDS}/ ) { |verb| StringColorize.colorize_keyword(verb) }
           .gsub(STRINGS) { |str| StringColorize.colorize_str(str) }
       end
 
@@ -205,7 +154,277 @@ module Niceql
         err_caret_line.prepend("\n") unless err_line[-1] == "\n"
         err_caret_line
       end
+
     end
+
+    # The normalizing and formatting logic:
+    # 1. Split the original query onto the query part + literals + comments
+    #   a. find all potential dollar-signed separators
+    #   b. prepare full literal extractor regex
+    # 2. Find and separate all literals and comments into mutable/format-able types and immutable  ( see the typing and formatting rules below )
+    # 3. Replace all literals and comments with uniq ids on the original query to get the parametrized query
+    # 4. Format parametrized query alongside with mutable/format-able comments and literals
+    #   a. clear space characters: replace all \s+ to \s, remove all "\n" e.t.c
+    #   b. split in lines -> indent -> colorize
+    # 5. Restore literals and comments with their values
+    class QueryNormalizer
+      extend Forwardable
+      def_delegator :Niceql, :config
+
+      # Literals content should not be indented, only string parts separated by new lines can be indented
+      # indentable_string:
+      # UPDATE docs SET body = 'First line'
+      # 'Second line'
+      # 'Third line', ...
+      #
+      # SQL standard allow such multiline separation.
+
+      # newline_end_comments:
+      # SELECT * -- get all column
+      # SELECT * /* get all column */
+      #
+      # SELECT * -- get all column
+      # -- we need all columns for this request
+      # SELECT * /* get all column
+      # we need all columns for this request */
+      #
+      # rare case newline_start_comments:
+      # SELECT *
+      # /* get all column
+      # we need all columns for this request */ FROM table
+      #
+      # newline_wrapped_comments:
+      # SELECT *
+      # /* get all column
+      # we need all columns for this request */
+      # FROM table
+      #
+      # SELECT *
+      # -- get all column
+      # -- we need all columns for this request
+      # FROM ...
+      # Potentially we could prettify different type of comments and strings a little bit differently,
+      # but right now there is no difference between the
+      # newline_wrapped_comment, newline_start_comment, newline_end_comment, they all will be wrapped in newlines
+      COMMENT_AND_LITERAL_TYPES = %i[immutable_string
+                               indentable_string
+                               inline_comment
+                               newline_wrapped_comment
+                               newline_start_comment
+                               newline_end_comment]
+
+
+      attr_reader :parametrized_sql, :initial_sql, :string_regex, :literals_and_comments_types, :colorize
+
+      def initialize(sql, colorize)
+        @initial_sql = sql
+        @colorize = colorize
+        @parametrized_sql = ""
+        @guids_to_content = {}
+        @literals_and_comments_types = {}
+        @counter = Hash.new(0)
+        @string_regex = get_strings_regex(sql)
+
+        prepare_parametrized_sql
+        prettify_parametrized_sql
+      end
+
+      def prettify_parametrized_sql
+        indent = 0
+        brackets = []
+        first_keyword = true
+
+
+        parametrized_sql.gsub!(query_split_regex) do |matched_part|
+          if inline_piece?(matched_part)
+            first_keyword = false
+            next matched_part
+          end
+          post_match_str = Regexp.last_match.post_match
+
+          if %w[SELECT UPDATE INSERT].include?(matched_part)
+            indent += config.indentation_base if !config.open_bracket_is_newliner || brackets.last.nil? || brackets.last[:nested]
+            brackets.last[:nested] = true if brackets.last
+            add_new_line = !first_keyword
+          elsif matched_part == '('
+            next_closing_bracket = post_match_str.index(')')
+            # check if brackets contains SELECT statement
+            add_new_line = !!post_match_str[0..next_closing_bracket][/SELECT/] && config.open_bracket_is_newliner
+            brackets << { nested: add_new_line }
+          elsif matched_part == ')'
+            # this also covers case when right bracket is used without corresponding left one
+            add_new_line = brackets.last.nil? || brackets.last[:nested]
+            indent -= (brackets.last.nil? && 2 || brackets.last[:nested] && 1 || 0) * config.indentation_base
+            indent = 0 if indent < 0
+            brackets.pop
+          elsif matched_part[POSSIBLE_INLINER]
+            # in postgres ORDER BY can be used in aggregation function this will keep it
+            # inline with its agg function
+            add_new_line = brackets.last.nil? || brackets.last[:nested]
+          else
+            # since we are matching KEYWORD without space on the end
+            # IN will be present in JOIN, DISTINCT e.t.c, so we need to exclude it explicitly
+            add_new_line = matched_part.match?(/(#{NEW_LINE_KEYWORDS})/)
+          end
+
+          # do not indent first keyword in query, and indent everytime we started new line
+          add_indent_to_keyword = !first_keyword && add_new_line
+
+          if literals_and_comments_types[matched_part]
+            # this is a case when comment followed by ordinary SQL part not by any keyword
+            # this means that it will not be gsubed and no indent will be added before this part, while needed
+            last_comment_followed_by_keyword = post_match_str.match?(/\A\}\s{0,1}(?:#{KEYWORDS})/)
+            indent_parametrized_part(matched_part, indent, !last_comment_followed_by_keyword, !first_keyword)
+            matched_part
+          else
+            first_keyword = false
+            indented_sql = ( add_indent_to_keyword ? indent_multiline(matched_part, indent) : matched_part)
+            add_new_line ? "\n" + indented_sql : indented_sql
+          end
+        end
+
+        parametrized_sql.gsub!(" \n", "\n") # we moving keywords onto next line but the space before keyword could be kept, we can crop it anyway
+
+        clear_extra_newline_after_comments
+
+        colorize_query if colorize
+      end
+
+      def add_string_or_comment( crumb )
+        # when we splitting original SQL, it could and could not end with literal/comment
+        # hence we could try to add nil...
+        return if crumb.nil?
+        crumb_type = get_crumb_type(crumb)
+        # will be formatted to comment_1_guid
+        typed_id = new_crumb_name(crumb_type)
+        @guids_to_content[typed_id] = crumb
+        @counter[crumb_type] += 1
+        @literals_and_comments_types[typed_id] = crumb_type
+        "%{#{typed_id}}"
+      end
+
+      def prepare_parametrized_sql
+        @parametrized_sql = @initial_sql.split(/#{SQL_COMMENTS}|#{string_regex}/).each_slice(2).map{ | sql_part, comment_or_string |
+          # remove additional formatting for sql_parts and replace comment and strings with a guids
+          [sql_part.gsub(/[\s]+/, ' '), add_string_or_comment(comment_or_string)]
+        }.flatten.compact.join('')
+      end
+
+      def literal_and_comments_replacers_regex
+        /(#{@literals_and_comments_types.keys.join("|")})/
+      end
+
+      def inline_piece?(comment_or_string)
+        %i[immutable_string inline_comment].include?( literals_and_comments_types[comment_or_string] )
+      end
+
+      def prettified_sql
+        @parametrized_sql % @guids_to_content.transform_keys(&:to_sym)
+      end
+
+      private
+      
+      def query_split_regex( with_brackets = true )
+        with_brackets ? /(#{KEYWORDS}|#{BRACKETS}|#{literal_and_comments_replacers_regex})/ 
+          : /(#{KEYWORDS}|#{literal_and_comments_replacers_regex})/
+      end
+      # when comment ending with newline followed by a keyword we should remove double newlines
+      def clear_extra_newline_after_comments
+        newlined_comments = @literals_and_comments_types.select{|k,| new_line_ending_comment?(k) }
+        parametrized_sql.gsub!(/(#{newlined_comments.keys.join("}\n|")}}\n)/, &:chop)
+      end
+      
+      def colorize_query
+        parametrized_sql.gsub!(query_split_regex(false)) do |matched_part|
+          if literals_and_comments_types[matched_part]
+            colorize_comment_or_literal(matched_part)
+            matched_part
+          else
+            StringColorize.colorize_keyword(matched_part)
+          end
+        end
+      end
+      
+      def indent_parametrized_part( matched_typed_id, indent, indent_after_comment, start_with_newline = true )
+        case @literals_and_comments_types[matched_typed_id]
+        when :inline_comment, :immutable_string # technically we will not get here, since this types of literals/comments are not indentable
+        when :indentable_string
+          lines = @guids_to_content[matched_typed_id].lines
+          @guids_to_content[matched_typed_id] = lines[0] +
+            lines[1..-1].map!{ |ln| indent_multiline(ln[/'[^']+'/], indent) }.join("\n")
+        else
+          content = @guids_to_content[matched_typed_id][COMMENT_CONTENT]
+          @guids_to_content[matched_typed_id] = (start_with_newline ? "\n" : '') +
+            "#{indent_multiline(content, indent)}\n" +
+            ( indent_after_comment ? indent_multiline('', indent) : '' )
+        end
+      end
+
+      def colorize_comment_or_literal(matched_typed_id)
+        @guids_to_content[matched_typed_id] = comment?(@literals_and_comments_types[matched_typed_id]) ?
+          StringColorize.colorize_comment(@guids_to_content[matched_typed_id])
+          : StringColorize.colorize_str(@guids_to_content[matched_typed_id])
+      end
+
+      def get_crumb_type(comment_or_string)
+        SQL_COMMENTS.match?(comment_or_string) ? get_comment_type(comment_or_string)
+          : get_string_type(comment_or_string)
+      end
+
+      def get_comment_type(comment) 
+        case comment
+        when /\s*\n+\s*.+\s*\n+\s*/; :newline_wrapped_comment
+        when /\s*\n+\s*.+/; :newline_start_comment
+        when /.+\s*\n+\s*/; :newline_end_comment
+        else :inline_comment
+        end
+      end
+
+      def get_string_type(string)
+        MULTILINE_INDENTABLE_LITERAL.match?(string) ? :indentable_string : :immutable_string
+      end
+
+      def new_crumb_name(crumb_type)
+        "#{crumb_type}_#{@counter[crumb_type]}_#{SecureRandom.uuid}"
+      end
+
+      def get_sql_named_strs(sql)
+        freq = Hash.new(0)
+        sql.scan(/#{NAMED_DOLLAR_QUOTED_STRINGS}/).select{|str| freq[str] +=1; freq[str] == 2 }
+           .flatten
+           .map{|str| str.gsub!("$", '\$')}
+      end
+
+      def get_strings_regex
+        # /($STR$.+$STR$|$$[^$]$$|'[^']'|"[^"]")/
+        strs = get_sql_named_strs(initial_sql).map{ |dq_str| "#{dq_str}.+#{dq_str}"}
+        strs = ["(#{strs.join("|")})"] if strs != []
+        /#{[*strs, DOLLAR_QUOTED_STRINGS, STRINGS].join("|")}/m
+      end
+
+      def comment?(piece_type)
+        !literal?(piece_type)
+      end
+
+      def literal?(piece_type)
+        %i[indentable_string immutable_string].include?(piece_type)
+      end
+
+      def new_line_ending_comment?(comment_or_literal)
+        %i[newline_wrapped_comment newline_end_comment newline_start_comment]
+          .include?( @literals_and_comments_types[comment_or_literal] )
+      end
+
+      def indent_multiline( keyword, indent )
+        if keyword.match?(/.\s*\n\s*./)
+          keyword.lines.map!{|ln| ln.prepend(' ' * indent)}.join("")
+        else
+          keyword.prepend(' ' * indent)
+        end
+      end
+
+    end
+
   end
 
   class NiceQLConfig
