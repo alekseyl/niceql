@@ -1,13 +1,14 @@
 # Niceql
 
-**ATTENTION: Since ver 0.5.0 the ActiveRecord integration will be provided via standalone gem: [rails_sql_prettifier](https://github.com/alekseyl/rails_sql_prettifier)!**
+**ATTENTION: After ver 0.5.0 the ActiveRecord integration is provided via standalone gem: [rails_sql_prettifier](https://github.com/alekseyl/rails_sql_prettifier)!**
 
 This is a small, nice, simple and zero dependency solution for SQL prettifying for Ruby. 
 It can be used in an irb console without any dependencies ( run bin/console and look for examples ).
 
 Any reasonable suggestions are welcome. 
 
-**Please pay attention: untill issue https://github.com/alekseyl/niceql/issues/16 is resolved any UPDATE or INSERT request might corrupt your data, don't use on production!**
+**Please pay attention: even though issue https://github.com/alekseyl/niceql/issues/16 is resolved 
+ still potentially UPDATE or INSERT request might corrupt your data, please don't patch pg_adapter on production!**
 
  
 ## Before/After 
@@ -49,7 +50,7 @@ Niceql.configure do |c|
   # before execution. Formatted SQL will lead to much better SQL-query debugging and much more clearer error messages 
   # if you are using Postgresql as a data source.  
   # 
-  # You can adjust pg_adapter in production but do it at your own risk!
+  # Adjusting pg_adapter in production is strongly discouraged! 
   # 
   # If you need to debug SQL queries in production use exec_niceql
   # default: false
@@ -86,7 +87,7 @@ end
 
 ## Usage
 
-### With ActiveRecord
+### With ActiveRecord ( you need rails_sql_prettifier for that! )
 
 ```ruby
   # puts colorized and formatted corresponding SQL query
