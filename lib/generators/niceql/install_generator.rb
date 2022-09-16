@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Niceql
   module Generators
     class InstallGenerator < Rails::Generators::Base
@@ -5,7 +7,7 @@ module Niceql
       desc "Creates Niceql initializer for your application"
 
       def copy_initializer
-        template "niceql_initializer.rb", "config/initializers/niceql.rb"
+        template("niceql_initializer.rb", "config/initializers/niceql.rb")
 
         puts "Install complete!"
       end

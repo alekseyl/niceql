@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 Niceql.configure do |c|
   # You can adjust pg_adapter in prooduction at your own risk!
   # If you need it in production use exec_niceql
