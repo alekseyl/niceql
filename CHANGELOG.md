@@ -1,3 +1,11 @@
+# 0.6.0
+* Huge core-logic refactoring and simplification
+* dollar signed literals/strings added
+* strings literals issue https://github.com/alekseyl/niceql/issues/16 fixed
+* strings literals colorized properly
+* comments are bold and greyed now. 
+* code now is rubocoped with shopify rules
+
 # 0.5.1
 * No features just some code refactoring
 
