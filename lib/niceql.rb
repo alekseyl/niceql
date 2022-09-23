@@ -6,24 +6,26 @@ require "forwardable"
 
 module Niceql
   module StringColorize
-    def self.colorize_keyword(str)
-      # yellow ANSI color
-      "\e[0;33;49m#{str}\e[0m"
-    end
+    class << self
+      def colorize_keyword(str)
+        # yellow ANSI color
+        "\e[0;33;49m#{str}\e[0m"
+      end
 
-    def self.colorize_str(str)
-      # cyan ANSI color
-      "\e[0;36;49m#{str}\e[0m"
-    end
+      def colorize_str(str)
+        # cyan ANSI color
+        "\e[0;36;49m#{str}\e[0m"
+      end
 
-    def self.colorize_err(err)
-      # red ANSI color
-      "\e[0;31;49m#{err}\e[0m"
-    end
+      def colorize_err(err)
+        # red ANSI color
+        "\e[0;31;49m#{err}\e[0m"
+      end
 
-    def self.colorize_comment(comment)
-      # bright black bold ANSI color
-      "\e[0;90;1;49m#{comment}\e[0m"
+      def colorize_comment(comment)
+        # bright black bold ANSI color
+        "\e[0;90;1;49m#{comment}\e[0m"
+      end
     end
   end
 
@@ -31,7 +33,8 @@ module Niceql
     # ?= -- should be present but without being added to MatchData
     AFTER_KEYWORD_SPACE = '(?=\s{1})'
     JOIN_KEYWORDS = '(RIGHT\s+|LEFT\s+){0,1}(INNER\s+|OUTER\s+){0,1}JOIN(\s+LATERAL){0,1}'
-    INLINE_KEYWORDS = "WITH|ASC|COALESCE|AS|WHEN|THEN|ELSE|END|AND|UNION|ALL|ON|DISTINCT|INTERSECT|EXCEPT|EXISTS|NOT|COUNT|ROUND|CAST|IN"
+    INLINE_KEYWORDS = "WITH|ASC|COALESCE|AS|WHEN|THEN|ELSE|END|AND|UNION|ALL|ON|DISTINCT|"\
+      "INTERSECT|EXCEPT|EXISTS|NOT|COUNT|ROUND|CAST|IN"
     NEW_LINE_KEYWORDS = "SELECT|FROM|WHERE|CASE|ORDER BY|LIMIT|GROUP BY|HAVING|OFFSET|UPDATE|SET|#{JOIN_KEYWORDS}"
 
     POSSIBLE_INLINER = /(ORDER BY|CASE)/
@@ -94,7 +97,11 @@ module Niceql
         sql_start_line_num = 3 if err.lines.length <= 3
         # error not always contains HINT
         sql_start_line_num ||= err.lines[3][/(HINT|DETAIL)/] ? 4 : 3
-        sql_body_lines = sql_start_line_num < err.lines.length ? err.lines[sql_start_line_num..-1] : original_sql_query&.lines
+        sql_body_lines = if sql_start_line_num < err.lines.length
+          err.lines[sql_start_line_num..-1]
+        else
+          original_sql_query&.lines
+        end
 
         # this means original query is missing so it's nothing to prettify
         return err unless sql_body_lines
@@ -164,7 +171,8 @@ module Niceql
     # 1. Split the original query onto the query part + literals + comments
     #   a. find all potential dollar-signed separators
     #   b. prepare full literal extractor regex
-    # 2. Find and separate all literals and comments into mutable/format-able types and immutable  ( see the typing and formatting rules below )
+    # 2. Find and separate all literals and comments into mutable/format-able types
+    #    and immutable  ( see the typing and formatting rules below )
     # 3. Replace all literals and comments with uniq ids on the original query to get the parametrized query
     # 4. Format parametrized query alongside with mutable/format-able comments and literals
     #   a. clear space characters: replace all \s+ to \s, remove all "\n" e.t.c
@@ -210,7 +218,7 @@ module Niceql
       # but right now there is no difference between the
       # newline_wrapped_comment, newline_start_comment, newline_end_comment, they all will be wrapped in newlines
       COMMENT_AND_LITERAL_TYPES = [:immutable_string, :indentable_string, :inline_comment, :newline_wrapped_comment,
-                                   :newline_start_comment, :newline_end_comment]
+                                   :newline_start_comment, :newline_end_comment,]
 
       attr_reader :parametrized_sql, :initial_sql, :string_regex, :literals_and_comments_types, :colorize
 
@@ -246,7 +254,8 @@ module Niceql
           post_match_str = Regexp.last_match.post_match
 
           if ["SELECT", "UPDATE", "INSERT"].include?(matched_part)
-            indent += config.indentation_base if !config.open_bracket_is_newliner || brackets.last.nil? || brackets.last[:nested]
+            indent_block = !config.open_bracket_is_newliner || brackets.last.nil? || brackets.last[:nested]
+            indent += config.indentation_base if indent_block
             brackets.last[:nested] = true if brackets.last
             add_new_line = !first_keyword
           elsif matched_part == "("
@@ -446,11 +455,13 @@ module Niceql
     end
   end
 
-  def self.configure
-    yield(config)
-  end
+  class << self
+    def configure
+      yield(config)
+    end
 
-  def self.config
-    @config ||= NiceQLConfig.new
+    def config
+      @config ||= NiceQLConfig.new
+    end
   end
 end
