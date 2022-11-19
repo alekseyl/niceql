@@ -218,7 +218,7 @@ module Niceql
       # but right now there is no difference between the
       # newline_wrapped_comment, newline_start_comment, newline_end_comment, they all will be wrapped in newlines
       COMMENT_AND_LITERAL_TYPES = [:immutable_string, :indentable_string, :inline_comment, :newline_wrapped_comment,
-                                   :newline_start_comment, :newline_end_comment,]
+                                   :newline_start_comment, :newline_end_comment]
 
       attr_reader :parametrized_sql, :initial_sql, :string_regex, :literals_and_comments_types, :colorize
 

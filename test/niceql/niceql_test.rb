@@ -83,7 +83,7 @@ class NiceQLTest < Minitest::Test
     # ETALON goes with \n at the end :(
     assert_equal_standard(pretty_sql, etalon.chop)
   end
-  
+
   def test_regression_when_no_comments_present
     etalon = <<~ETALON
       SELECT "webinars".*
