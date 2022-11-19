@@ -343,6 +343,7 @@ module Niceql
       # when comment ending with newline followed by a keyword we should remove double newlines
       def clear_extra_newline_after_comments
         newlined_comments = @literals_and_comments_types.select { |k,| new_line_ending_comment?(k) }
+        return if newlined_comments.length == 0
         parametrized_sql.gsub!(/(#{newlined_comments.keys.join("}\n|")}}\n)/, &:chop)
       end
 

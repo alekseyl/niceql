@@ -42,8 +42,9 @@ class NiceQLTest < Minitest::Test
         GROUP BY some
         HAVING 2 > 1;
       --comment to second query with semicolon;
-      SELECT other
-        FROM other_table;
+      SELECT other."column"
+        FROM "table"
+        WHERE id = 1;
       -- third query with complex string literals and UPDATE
       UPDATE some_table
         SET string='
@@ -66,7 +67,7 @@ class NiceQLTest < Minitest::Test
          comment */
       WHERE some NOT IN (SELECT other_some FROM other_table WHERE id IN ARRAY[1,2]::bigint[] ) ORDER BY   some GROUP BY some       HAVING 2 > 1;
       --comment to second query with semicolon;
-      SELECT other FROM other_table;
+      SELECT other."column" FROM "table" WHERE id = 1;
 
       -- third query with complex string literals and UPDATE
       UPDATE some_table SET string='
@@ -81,6 +82,20 @@ class NiceQLTest < Minitest::Test
 
     # ETALON goes with \n at the end :(
     assert_equal_standard(pretty_sql, etalon.chop)
+  end
+  
+  def test_regression_when_no_comments_present
+    etalon = <<~ETALON
+      SELECT "webinars".*
+        FROM "webinars"
+        WHERE "webinars"."deleted_at" IS NULL
+    ETALON
+
+    prettified = Niceql::Prettifier.prettify_multiple(<<~PRETTIFY_ME, false)
+      SELECT "webinars".* FROM "webinars" WHERE "webinars"."deleted_at" IS NULL
+    PRETTIFY_ME
+
+    assert_equal_standard(prettified.chop, etalon.chop)
   end
 
   def broken_sql_sample

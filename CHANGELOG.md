@@ -1,3 +1,8 @@
+# 0.6.1
+* github CI added ( PR: https://github.com/alekseyl/niceql/pull/22 many thnx to @petergoldstein )
+* issue fixed https://github.com/alekseyl/niceql/issues/23
+* dropped support for 2.4 ( transform_keys is missing, and I'm too lazy to backward reimplement it you can do PR if needed )
+
 # 0.6.0
 * Huge core-logic refactoring and simplification
 * dollar signed literals/strings added
