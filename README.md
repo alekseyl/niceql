@@ -5,11 +5,7 @@
 This is a small, nice, simple and zero dependency solution for SQL prettifying for Ruby. 
 It can be used in an irb console without any dependencies ( run bin/console and look for examples ).
 
-Any reasonable suggestions are welcome. 
-
-**Please pay attention: even though issue https://github.com/alekseyl/niceql/issues/16 is resolved 
- still potentially UPDATE or INSERT request might corrupt your data, please don't patch pg_adapter on production!**
-
+Any reasonable suggestions are welcome.
  
 ## Before/After 
 ### SQL prettifier: 
