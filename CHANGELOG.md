@@ -1,3 +1,7 @@
+# 0.6.2
+* github CI added 3.2, 3.3, 3.4 to matrix
+* fixed: https://github.com/alekseyl/niceql/issues/25
+
 # 0.6.1
 * github CI added ( PR: https://github.com/alekseyl/niceql/pull/22 many thnx to @petergoldstein )
 * issue fixed https://github.com/alekseyl/niceql/issues/23
