@@ -166,6 +166,6 @@ class NiceQLTest < Minitest::Test
       SELECT "clients".* FROM "clients" WHERE (id % 10 = 9)
     ISSUE
 
-    assert_equal_standard(prettified, etalon.chop)
+    assert_equal_standard(prettified.chop, etalon.chop)
   end
 end
