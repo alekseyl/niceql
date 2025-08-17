@@ -240,7 +240,7 @@ module Niceql
         # % is a legit operand: https://github.com/alekseyl/niceql/issues/25
         # so it should be escaped via doubling, the easiest way is to do it twice,
         # doubling every %, and then restoring single % for the combination of %%{
-        @parametrized_sql.gsub('%', '%%').gsub('%%{', '%{') % @guids_to_content.transform_keys(&:to_sym)
+        @parametrized_sql.gsub("%", "%%").gsub("%%{", "%{") % @guids_to_content.transform_keys(&:to_sym)
       end
 
       private
