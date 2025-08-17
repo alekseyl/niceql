@@ -155,14 +155,16 @@ class NiceQLTest < Minitest::Test
     standard_err
   end
 
-  test '% usage does not throw an error' do
-    etalon = <<~PERC
+  test "% usage does not throw an error" do
+    etalon = <<~PERCENTAGE
       SELECT "clients".*
         FROM "clients"
         WHERE (id % 10 = 9)
-    PERC
+    PERCENTAGE
 
-    prettified = Niceql::Prettifier.prettify_multiple('SELECT "clients".* FROM "clients" WHERE (id % 10 = 9)', false)
+    prettified = Niceql::Prettifier.prettify_multiple(<<~ISSUE, false)
+      SELECT "clients".* FROM "clients" WHERE (id % 10 = 9)
+    ISSUE
 
     assert_equal_standard(prettified, etalon.chop)
   end
