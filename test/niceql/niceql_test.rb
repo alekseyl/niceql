@@ -154,4 +154,16 @@ class NiceQLTest < Minitest::Test
       Niceql::StringColorize.colorize_err("     ^\n"))
     standard_err
   end
+
+  test '% usage does not throw an error' do
+    etalon = <<~PERC
+      SELECT "clients".*
+        FROM "clients"
+        WHERE (id % 10 = 9)
+    PERC
+
+    prettified = Niceql::Prettifier.prettify_multiple('SELECT "clients".* FROM "clients" WHERE (id % 10 = 9)', false)
+
+    assert_equal_standard(prettified, etalon.chop)
+  end
 end
