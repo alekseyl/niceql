@@ -144,6 +144,24 @@ class NiceQLTest < Minitest::Test
     assert_equal_standard(Niceql::Prettifier.prettify_pg_err(err + broken_sql_sample), sample_err)
   end
 
+  test "error LINE past the end of the given sql returns the error unchanged" do
+    # the error belongs to another statement, e.g. ActiveRecord's own schema query for a missing table
+    sql = "SELECT a.attname FROM pg_attribute a WHERE a.attrelid = 'missing_table'::regclass"
+    err = <<~ERR
+      ERROR:  relation "missing_table" does not exist
+      LINE 3:  WHERE a.attrelid = 'missing_table'::regclass
+                                   ^
+    ERR
+    quoted_err = <<~ERR
+      ERROR:  relation "missing_table" does not exist
+      LINE 10:  WHERE a.attrelid = '"missing_table"'::reg...
+                                   ^
+    ERR
+
+    assert_equal_standard(Niceql::Prettifier.prettify_pg_err(err, sql), err)
+    assert_equal_standard(Niceql::Prettifier.prettify_pg_err(quoted_err, sql), quoted_err)
+  end
+
   def prepare_sample_err(base_err, prt_err_sql)
     standard_err = base_err + prt_err_sql.gsub(/#{Niceql::Prettifier::KEYWORDS}/) do |keyword|
                                 Niceql::StringColorize.colorize_keyword(keyword)

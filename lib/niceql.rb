@@ -111,6 +111,10 @@ module Niceql
         # and to apply a full red colorizing schema on an SQL line with error
         err_line = sql_body_lines[err_line_num - 1]
 
+        # LINE N may point past the sql we've got, when the error belongs to another statement,
+        # so there is no line to put a caret under
+        return err unless err_line
+
         # colorizing keywords, strings and error line
         err_body = sql_body_lines.map do |ln|
           ln == err_line ? StringColorize.colorize_err(ln) : colorize_err_line(ln)
